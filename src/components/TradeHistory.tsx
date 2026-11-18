@@ -6,6 +6,10 @@ interface TradeHistoryProps {
   history: ClosedTrade[];
   decimals: number;
   maxRows?: number;
+  /** 提供时显示可编辑备注输入框 */
+  onNoteEdit?: (tradeId: string, note: string) => void;
+  /** 提供时开/平仓时间可点击跳转 K 线 */
+  onJumpTo?: (time: number) => void;
 }
 
 const REASON_LABEL: Record<ClosedTrade['exitReason'], string> = {
@@ -15,7 +19,7 @@ const REASON_LABEL: Record<ClosedTrade['exitReason'], string> = {
   'replay-ended': '回放结束',
 };
 
-export function TradeHistory({ history, decimals, maxRows = 50 }: TradeHistoryProps) {
+export function TradeHistory({ history, decimals, maxRows = 50, onNoteEdit, onJumpTo }: TradeHistoryProps) {
   if (history.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 px-4 py-10 text-center">
@@ -29,7 +33,7 @@ export function TradeHistory({ history, decimals, maxRows = 50 }: TradeHistoryPr
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[760px] border-collapse font-mono text-[13px]">
+      <table className="w-full min-w-[980px] border-collapse font-mono text-[13px]">
         <thead>
           <tr className="border-b border-bg-border text-left text-[12px] uppercase tracking-wider text-text-muted">
             <Th>#</Th>
@@ -44,6 +48,8 @@ export function TradeHistory({ history, decimals, maxRows = 50 }: TradeHistoryPr
             <Th>原因</Th>
             <Th>开仓时间</Th>
             <Th>平仓时间</Th>
+            <Th>余额</Th>
+            <Th>备注</Th>
           </tr>
         </thead>
         <tbody>
@@ -80,8 +86,50 @@ export function TradeHistory({ history, decimals, maxRows = 50 }: TradeHistoryPr
                     {REASON_LABEL[t.exitReason]}
                   </span>
                 </Td>
-                <Td className="text-text-muted">{formatDateTime(t.openedAt)}</Td>
-                <Td className="text-text-muted">{formatDateTime(t.closedAt)}</Td>
+                <Td className="text-text-muted">
+                  {onJumpTo ? (
+                    <button
+                      type="button"
+                      title="点击跳转 K 线"
+                      onClick={() => onJumpTo(t.openedAt)}
+                      className="underline-offset-2 hover:text-accent hover:underline"
+                    >
+                      {formatDateTime(t.openedAt)}
+                    </button>
+                  ) : (
+                    formatDateTime(t.openedAt)
+                  )}
+                </Td>
+                <Td className="text-text-muted">
+                  {onJumpTo ? (
+                    <button
+                      type="button"
+                      title="点击跳转 K 线"
+                      onClick={() => onJumpTo(t.closedAt)}
+                      className="underline-offset-2 hover:text-accent hover:underline"
+                    >
+                      {formatDateTime(t.closedAt)}
+                    </button>
+                  ) : (
+                    formatDateTime(t.closedAt)
+                  )}
+                </Td>
+                <Td className="text-right text-text-secondary">
+                  {t.balanceAfter !== undefined ? formatCurrency(t.balanceAfter) : '—'}
+                </Td>
+                <Td>
+                  {onNoteEdit ? (
+                    <input
+                      type="text"
+                      value={t.note ?? ''}
+                      onChange={(e) => onNoteEdit(t.id, e.target.value)}
+                      placeholder="备注…"
+                      className="h-7 w-[140px] rounded-sm border border-bg-border bg-bg-elevated px-1.5 text-[12px] text-text-primary outline-none focus:border-accent"
+                    />
+                  ) : (
+                    <span className="text-[12px] italic text-accent">{t.note ?? ''}</span>
+                  )}
+                </Td>
               </tr>
             );
           })}

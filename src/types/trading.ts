@@ -33,6 +33,10 @@ export interface ClosedTrade {
   exitReason: ExitReason;
   openedAt: number;
   closedAt: number;
+  /** 平仓后账户余额 */
+  balanceAfter?: number;
+  /** 自由备注（如成功/失败原因） */
+  note?: string;
 }
 
 export interface TradingState {

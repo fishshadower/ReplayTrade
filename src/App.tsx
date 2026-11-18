@@ -47,6 +47,7 @@ import {
   deleteSession,
   loadSessions,
   updateSessionNote,
+  updateSessionTradeNote,
 } from './utils/sessionStore';
 import type { ReplaySessionRecord } from './utils/sessionStore';
 import { ReplaySessionsPanel } from './components/ReplaySessionsPanel';
@@ -110,6 +111,7 @@ export default function App() {
   const [showIndicators, setShowIndicators] = useState(true);
   const [showVolume, setShowVolume] = useState(true);
   const [invertPriceScale, setInvertPriceScale] = useState(false);
+  const [focusTime, setFocusTime] = useState(0);
   const [onboarded, setOnboarded] = useState<boolean>(() => isOnboarded());
   const [showHelp, setShowHelp] = useState(false);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
@@ -584,6 +586,7 @@ export default function App() {
         showVolume={showVolume}
         invertPriceScale={invertPriceScale}
         onUpdatePositionLevels={paper.updatePositionLevels}
+        focusTimeSignal={focusTime}
         onChartReady={handleChartReady}
       />
       {market.loading && <LoadingOverlay progress={market.progress} />}
@@ -929,7 +932,12 @@ export default function App() {
             />
           )}
           {activeTab === 'history' && (
-            <TradeHistory history={paper.state.history} decimals={decimals} />
+            <TradeHistory
+              history={paper.state.history}
+              decimals={decimals}
+              onNoteEdit={paper.updateTradeNote}
+              onJumpTo={(t) => setFocusTime(t)}
+            />
           )}
           {activeTab === 'stats' && (
             <StatisticsPanel
@@ -948,6 +956,7 @@ export default function App() {
               onDelete={(id) => setSessions(deleteSession(id))}
               onClear={() => setSessions(clearSessions())}
               onUpdateNote={(id, note) => setSessions(updateSessionNote(id, note))}
+              onUpdateTradeNote={(sid, tid, note) => setSessions(updateSessionTradeNote(sid, tid, note))}
             />
           )}
           {activeTab === 'session' && (
@@ -968,6 +977,10 @@ export default function App() {
               oandaEnv={oandaEnv}
               onOandaTokenChange={handleOandaTokenChange}
               onOandaEnvChange={handleOandaEnvChange}
+              onResetBalance={() => {
+                archiveRef.current(null);
+                paper.startSession(balanceSetting);
+              }}
             />
           )}
         </div>
@@ -1285,6 +1298,7 @@ function SessionDetails({
   oandaEnv,
   onOandaTokenChange,
   onOandaEnvChange,
+  onResetBalance,
 }: {
   symbol: string;
   timeframe: Timeframe;
@@ -1302,6 +1316,7 @@ function SessionDetails({
   oandaEnv: 'practice' | 'live';
   onOandaTokenChange: (v: string) => void;
   onOandaEnvChange: (v: 'practice' | 'live') => void;
+  onResetBalance: () => void;
 }) {
   const revealedPct =
     replay.candles.length > 0 ? ((replay.currentReplayIndex + 1) / replay.candles.length) * 100 : 0;
@@ -1366,8 +1381,14 @@ function SessionDetails({
             />
           </div>
           <p className="mt-1.5 text-[12px] text-text-muted">
-            下次开始回放时生效。
+            下次开始回放时生效；也可立即重置。
           </p>
+          <button
+            onClick={onResetBalance}
+            className="mt-1.5 w-full rounded-sm border border-down/60 px-2 py-1.5 text-[13px] font-semibold text-down transition-colors hover:bg-down-dim"
+          >
+            立即重置账户（清持仓与成交）
+          </button>
         </div>
         <div className="rounded-sm border border-bg-border bg-bg-elevated p-2.5">
           <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wider text-text-muted">

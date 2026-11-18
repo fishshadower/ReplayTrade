@@ -59,6 +59,8 @@ interface TradingChartProps {
   showVolume?: boolean;
   invertPriceScale?: boolean;
   onUpdatePositionLevels?: (id: string, levels: { stopLoss?: number | null; takeProfit?: number | null }) => void;
+  /** 变化时视图跳到该时间（秒），用于历史成交点击跳转 */
+  focusTimeSignal?: number;
   onChartReady?: (chart: IChartApi | null) => void;
 }
 
@@ -147,6 +149,7 @@ export function TradingChart({
   showVolume = true,
   invertPriceScale = false,
   onUpdatePositionLevels,
+  focusTimeSignal = 0,
   onChartReady,
 }: TradingChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -486,6 +489,25 @@ export function TradingChart({
     fitPriceScaleToCandles(cs.priceScale(), visible.slice(Math.max(0, Math.floor(lr.from))));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invertPriceScale]);
+
+  // 外部请求跳转（点击历史成交时间）：视图落到对应 K 线并适配价格
+  useEffect(() => {
+    if (!focusTimeSignal || focusTimeSignal <= 0) return;
+    const idx = nearestIndexByTime(candles, focusTimeSignal);
+    if (idx < 0) return;
+    const ts = chartRef.current?.timeScale();
+    if (!ts) return;
+    const span = 160;
+    ts.setVisibleLogicalRange({
+      from: Math.max(0, idx - Math.floor(span * 0.5)),
+      to: idx + Math.ceil(span * 0.5),
+    });
+    const cs = candleSeriesRef.current;
+    if (cs) fitPriceScaleToCandles(cs.priceScale(), candles.slice(Math.max(0, idx - span), idx + 40));
+    atRightEdgeRef.current = false;
+    setAwayFromEdge(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusTimeSignal]);
 
   // Data sync: only the visible (revealed) slice ever reaches the series.
   useEffect(() => {

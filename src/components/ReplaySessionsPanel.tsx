@@ -12,9 +12,10 @@ interface ReplaySessionsPanelProps {
   onDelete: (id: string) => void;
   onClear: () => void;
   onUpdateNote: (id: string, note: string) => void;
+  onUpdateTradeNote: (sessionId: string, tradeId: string, note: string) => void;
 }
 
-export function ReplaySessionsPanel({ sessions, decimals, onDelete, onClear, onUpdateNote }: ReplaySessionsPanelProps) {
+export function ReplaySessionsPanel({ sessions, decimals, onDelete, onClear, onUpdateNote, onUpdateTradeNote }: ReplaySessionsPanelProps) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [editNoteId, setEditNoteId] = useState<string | null>(null);
@@ -140,7 +141,7 @@ export function ReplaySessionsPanel({ sessions, decimals, onDelete, onClear, onU
                   <Trash2 size={12} />
                 </button>
               </div>
-              {open && <SessionDetail rec={rec} decimals={decimals} />}
+              {open && <SessionDetail rec={rec} decimals={decimals} onNoteEdit={(tid, note) => onUpdateTradeNote(rec.id, tid, note)} />}
             </div>
           );
         })}
@@ -149,7 +150,15 @@ export function ReplaySessionsPanel({ sessions, decimals, onDelete, onClear, onU
   );
 }
 
-function SessionDetail({ rec, decimals }: { rec: ReplaySessionRecord; decimals: number }) {
+function SessionDetail({
+  rec,
+  decimals,
+  onNoteEdit,
+}: {
+  rec: ReplaySessionRecord;
+  decimals: number;
+  onNoteEdit: (tradeId: string, note: string) => void;
+}) {
   const { perf, equitySeries, maxDrawdown } = computeSessionStats(rec);
   const netPnl = rec.totalPnl;
   const returnPct = rec.startingBalance > 0 ? (netPnl / rec.startingBalance) * 100 : 0;
@@ -185,7 +194,7 @@ function SessionDetail({ rec, decimals }: { rec: ReplaySessionRecord; decimals: 
         </div>
         <EquityChart series={equitySeries} />
       </div>
-      <TradeHistory history={rec.trades} decimals={decimals} />
+      <TradeHistory history={rec.trades} decimals={decimals} onNoteEdit={onNoteEdit} />
     </div>
   );
 }

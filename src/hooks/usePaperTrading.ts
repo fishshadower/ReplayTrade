@@ -144,7 +144,7 @@ export function usePaperTrading(symbol: string) {
         balance,
         realizedPnl: balance - st.startingBalance,
         positions,
-        history: [...st.history, trade],
+        history: [...st.history, { ...trade, balanceAfter: balance }],
       };
       commitEquityWatermark(priceRef.current);
       sync();
@@ -194,8 +194,8 @@ export function usePaperTrading(symbol: string) {
       const exitTime = closedAt ?? Math.floor(Date.now() / 1000);
       for (const pos of st.positions) {
         const t = closePosition(pos, price, reason, exitTime);
-        trades.push(t);
         balance += t.pnl;
+        trades.push({ ...t, balanceAfter: balance });
       }
       if (trades.length === 0) return trades;
       storeRef.current = {
@@ -218,6 +218,20 @@ export function usePaperTrading(symbol: string) {
         ...storeRef.current,
         positions: storeRef.current.positions.map((p) =>
           p.id === id ? { ...p, stopLoss: p.entryPrice } : p,
+        ),
+      };
+      sync();
+    },
+    [sync],
+  );
+
+  /** 编辑某笔已平仓成交的备注。 */
+  const updateTradeNote = useCallback(
+    (tradeId: string, note: string) => {
+      storeRef.current = {
+        ...storeRef.current,
+        history: storeRef.current.history.map((t) =>
+          t.id === tradeId ? { ...t, note: note.trim() || undefined } : t,
         ),
       };
       sync();
@@ -336,6 +350,7 @@ export function usePaperTrading(symbol: string) {
     closeAllAtPrice,
     moveStopToEntry,
     updatePositionLevels,
+    updateTradeNote,
     archiveSession,
     processTick,
     updatePrice,

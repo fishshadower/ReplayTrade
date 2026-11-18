@@ -69,6 +69,20 @@ export function clearSessions(): ReplaySessionRecord[] {
   return [];
 }
 
+/** 编辑某批内某笔成交的备注。 */
+export function updateSessionTradeNote(sessionId: string, tradeId: string, note: string): ReplaySessionRecord[] {
+  const next = loadSessions().map((r) =>
+    r.id === sessionId
+      ? {
+          ...r,
+          trades: r.trades.map((t) => (t.id === tradeId ? { ...t, note: note.trim() || undefined } : t)),
+        }
+      : r,
+  );
+  persist(next);
+  return next;
+}
+
 /** 更新某批的备注。 */
 export function updateSessionNote(id: string, note: string): ReplaySessionRecord[] {
   const next = loadSessions().map((r) => (r.id === id ? { ...r, note: note.trim() || undefined } : r));
