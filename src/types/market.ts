@@ -30,13 +30,13 @@ export const SYMBOLS: MarketSymbol[] = [
     symbol: 'XAUUSD',
     binanceSymbol: 'PAXGUSDT',
     oandaInstrument: 'XAU_USD',
-    name: 'Gold Spot / U.S. Dollar',
+    name: '黄金现货',
     basePrice: 4_000,
     decimals: 2,
   },
-  { symbol: 'XAU/USD', binanceSymbol: 'PAXGUSDT', name: 'Gold (PAXG)', basePrice: 4_000, decimals: 2 },
-  { symbol: 'BTC/USDT', binanceSymbol: 'BTCUSDT', name: 'Bitcoin', basePrice: 67_000, decimals: 1 },
-  { symbol: 'ETH/USDT', binanceSymbol: 'ETHUSDT', name: 'Ethereum', basePrice: 3_300, decimals: 2 },
+  { symbol: 'XAU/USD', binanceSymbol: 'PAXGUSDT', name: '黄金 (PAXG)', basePrice: 4_000, decimals: 2 },
+  { symbol: 'BTC/USDT', binanceSymbol: 'BTCUSDT', name: '比特币', basePrice: 67_000, decimals: 1 },
+  { symbol: 'ETH/USDT', binanceSymbol: 'ETHUSDT', name: '以太坊', basePrice: 3_300, decimals: 2 },
   { symbol: 'SOL/USDT', binanceSymbol: 'SOLUSDT', name: 'Solana', basePrice: 168, decimals: 3 },
 ];
 

@@ -84,23 +84,23 @@ export function DrawingOverlay({
           role="menu"
           aria-label={`${TOOL_LABELS[selected.type]} actions`}
         >
-          <MenuBtn title="Duplicate drawing" onClick={onDuplicate}>
+          <MenuBtn title="复制图形" onClick={onDuplicate}>
             <Copy size={13} />
           </MenuBtn>
-          <MenuBtn title={selected.locked ? 'Unlock drawing' : 'Lock drawing'} onClick={onLock}>
+          <MenuBtn title={selected.locked ? '解锁图形' : '锁定图形'} onClick={onLock}>
             <Lock size={13} />
           </MenuBtn>
-          <MenuBtn title={selected.visible ? 'Hide drawing' : 'Show drawing'} onClick={onHide}>
+          <MenuBtn title={selected.visible ? '隐藏图形' : '显示图形'} onClick={onHide}>
             <EyeOff size={13} />
           </MenuBtn>
-          <MenuBtn title="Bring to front" onClick={onLayerFront}>
+          <MenuBtn title="移到最前" onClick={onLayerFront}>
             <BringToFront size={13} />
           </MenuBtn>
-          <MenuBtn title="Send to back" onClick={onLayerBack}>
+          <MenuBtn title="移到最后" onClick={onLayerBack}>
             <SendToBack size={13} />
           </MenuBtn>
           <span className="mx-0.5 h-4 w-px bg-bg-border" />
-          <MenuBtn title="Delete drawing" danger onClick={onDelete}>
+          <MenuBtn title="删除图形" danger onClick={onDelete}>
             <Trash2 size={13} />
           </MenuBtn>
         </div>
@@ -124,10 +124,10 @@ export function DrawingOverlay({
               onTextCommit();
             }
           }}
-          placeholder="Type…"
+          placeholder="输入…"
           rows={1}
-          aria-label="Drawing text"
-          className="pointer-events-auto absolute z-40 w-48 resize-none rounded-sm border border-accent bg-bg-panel px-2 py-1 font-mono text-[11px] leading-snug text-text-primary shadow-neo outline-none"
+          aria-label="图形文本"
+          className="pointer-events-auto absolute z-40 w-48 resize-none rounded-sm border border-accent bg-bg-panel px-2 py-1 font-mono text-[13px] leading-snug text-text-primary shadow-neo outline-none"
           style={
             textEditor.pos
               ? { left: textEditor.pos.x, top: textEditor.pos.y, transform: 'translate(-50%, -50%)' }

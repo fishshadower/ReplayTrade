@@ -33,46 +33,46 @@ const STEPS: Step[] = [
   {
     id: 'welcome',
     icon: <CandlestickChart size={22} className="text-accent" />,
-    title: 'Welcome to ReplayTrade',
-    body: 'A practice trading terminal for bar-by-bar replay. Study any supported market, backtest your decisions, and keep a full paper-trading record — all in your browser.',
-    kbd: ['Alt+H', 'Shortcuts'],
+    title: '欢迎来到 ReplayTrade',
+    body: '一个逐根 K 线回放的模拟交易终端。研究任意支持的市场、验证你的判断、留下完整的模拟交易记录——全部在浏览器里完成。',
+    kbd: ['Alt+H', '快捷键'],
     stats: [
-      { label: 'Markets', value: '5' },
-      { label: 'Timeframes', value: '7' },
-      { label: 'Demo balance', value: '$10k' },
+      { label: '市场', value: '5' },
+      { label: '周期', value: '7' },
+      { label: '模拟资金', value: '$10k' },
     ],
   },
   {
     id: 'replay',
     icon: <Play size={22} className="text-accent" />,
-    title: 'Bar-by-bar replay',
-    body: 'Click "Start Replay", hover any candle to pick the starting bar, then step forward at your own speed. Only revealed candles are shown, so you never see the future.',
-    kbd: ['Space', 'Play / pause'],
+    title: '逐根 K 线回放',
+    body: '点击「开始回放」，在图上点选起始 K 线，然后按自己的节奏逐根推进。只显示已揭示的 K 线，绝不会偷看未来。',
+    kbd: ['空格', '播放 / 暂停'],
     stats: [
-      { label: 'Reveal', value: 'Step-by-step' },
-      { label: 'Speeds', value: '0.25x – 10x' },
+      { label: '揭示方式', value: '逐根推进' },
+      { label: '速度档位', value: '0.25x – 10x' },
     ],
   },
   {
     id: 'trading',
     icon: <Target size={22} className="text-accent" />,
-    title: 'Paper trading with risk built in',
-    body: 'Place orders with stop-loss and take-profit from the Trade Panel. Every closed trade is scored with its R-multiple and feeds your statistics and equity curve.',
-    kbd: ['→', 'Next candle'],
+    title: '内置风险管理的模拟交易',
+    body: '在交易面板下单，自带止损止盈。每笔平仓都按 R 倍数计分，汇入你的统计和权益曲线。',
+    kbd: ['→', '下一根'],
     stats: [
-      { label: 'R-multiple', value: 'Tracked' },
-      { label: 'Stats', value: 'Live' },
+      { label: 'R 倍数', value: '自动跟踪' },
+      { label: '统计', value: '实时' },
     ],
   },
   {
     id: 'shortcuts',
     icon: <Keyboard size={22} className="text-accent" />,
-    title: 'Keyboard-first, like a real terminal',
-    body: 'Timeframes 1–7, arrow keys to step, +/- for speed, F for fullscreen. Open this tour again any time with Alt+H.',
-    kbd: ['1–7', 'Timeframes'],
+    title: '键盘优先，专业终端手感',
+    body: '数字键 1–7 切周期，方向键逐根推进，+/- 调速度，F 全屏。随时按 Alt+H 重新打开本引导。',
+    kbd: ['1–7', '切换周期'],
     stats: [
-      { label: 'Shortcuts', value: '12+' },
-      { label: 'Undo drawings', value: 'Ctrl+Z' },
+      { label: '快捷键', value: '12+' },
+      { label: '撤销绘图', value: 'Ctrl+Z' },
     ],
   },
 ];
@@ -105,30 +105,30 @@ export function OnboardingOverlay({ open, onClose }: OnboardingOverlayProps) {
       title={
         <span className="flex items-center gap-2">
           <CandlestickChart size={16} className="text-accent" />
-          ReplayTrade Quick Tour
+          ReplayTrade 快速上手
         </span>
       }
-      subtitle="Takes about 20 seconds"
+      subtitle="大概 20 秒看完"
       labelledBy="onboarding-title"
       onClose={finish}
       footer={
         <>
           {isLast ? (
             <Button variant="primary" size="lg" onClick={finish} autoFocus>
-              Start Trading
+              开始交易
             </Button>
           ) : (
             <Button variant="primary" size="lg" onClick={() => setStep((s) => s + 1)} autoFocus>
-              Next
+              下一步
             </Button>
           )}
           <div className="flex items-center justify-between">
             <button
               onClick={() => setStep((s) => Math.max(0, s - 1))}
               disabled={step === 0}
-              className="text-[11px] font-semibold text-text-secondary hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+              className="text-[13px] font-semibold text-text-secondary hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Back
+              上一步
             </button>
             <div className="flex items-center gap-1.5" aria-hidden="true">
               {STEPS.map((s, i) => (
@@ -142,9 +142,9 @@ export function OnboardingOverlay({ open, onClose }: OnboardingOverlayProps) {
             </div>
             <button
               onClick={finish}
-              className="text-[11px] font-semibold text-text-muted hover:text-text-secondary"
+              className="text-[13px] font-semibold text-text-muted hover:text-text-secondary"
             >
-              Skip
+              跳过
             </button>
           </div>
         </>
@@ -156,11 +156,11 @@ export function OnboardingOverlay({ open, onClose }: OnboardingOverlayProps) {
             {current.icon}
           </div>
           <div>
-            <Badge tone="accent">Step {step + 1} of {STEPS.length}</Badge>
-            <h3 className="mt-1 text-[15px] font-bold text-text-primary">{current.title}</h3>
+            <Badge tone="accent">第 {step + 1} / {STEPS.length} 步</Badge>
+            <h3 className="mt-1 text-[16px] font-bold text-text-primary">{current.title}</h3>
           </div>
         </div>
-        <p className="text-[12px] leading-relaxed text-text-secondary">{current.body}</p>
+        <p className="text-[14px] leading-relaxed text-text-secondary">{current.body}</p>
         <div className="grid grid-cols-2 gap-2">
           {current.stats.map((s) => (
             <Stat key={s.label} label={s.label} value={s.value} tone={s.tone ?? 'default'} />
@@ -170,7 +170,7 @@ export function OnboardingOverlay({ open, onClose }: OnboardingOverlayProps) {
           {current.kbd.map((k) => (
             <kbd
               key={k}
-              className="rounded-sm border border-bg-border bg-bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-text-secondary"
+              className="rounded-sm border border-bg-border bg-bg-elevated px-1.5 py-0.5 font-mono text-[12px] text-text-secondary"
             >
               {k}
             </kbd>

@@ -99,7 +99,7 @@ function chip(
   textColor = '#ffffff',
 ): void {
   ctx.save();
-  ctx.font = '10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+  ctx.font = "10px 'Inter Variable', 'Inter', -apple-system, 'PingFang SC', sans-serif";
   const tw = ctx.measureText(text).width;
   const pad = 3;
   const bw = tw + pad * 2;
@@ -465,7 +465,7 @@ export class DrawingRenderer {
       .filter((s): s is { x: number; y: number } => s !== null);
     if (pts.length < 2 || !pts[0]) return;
     const ctx = env.ctx;
-    if (d.style.fillOpacity > 0 && pts.length >= 3) {
+    if (d.type !== 'path' && d.style.fillOpacity > 0 && pts.length >= 3) {
       this.fillShape(ctx, d.style, () => {
         ctx.moveTo(pts[0]!.x, pts[0]!.y);
         for (let i = 1; i < pts.length; i++) {
@@ -510,7 +510,7 @@ export class DrawingRenderer {
     const ctx = env.ctx;
     const fontPx = d.style.fontSize;
     ctx.save();
-    ctx.font = `${fontPx}px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`;
+    ctx.font = `${fontPx}px 'Inter Variable', 'Inter', -apple-system, 'PingFang SC', sans-serif`;
     const lines = d.text.split('\n');
     const maxW = Math.max(...lines.map((l) => ctx.measureText(l).width), 10);
     const lineH = fontPx + 3;
@@ -579,23 +579,23 @@ export class DrawingRenderer {
     hline(targetS.y, '#22c55e', 1, [4, 4]);
 
     const cy0 = Math.min(entryS.y, stopS.y, targetS.y) - 18;
-    chip(ctx, env.w, x0, cy0, `Entry ${fmtPrice(entry, env.decimals)}`, hexToRgba(d.style.strokeColor, 0.92), 'left');
-    chip(ctx, env.w, x0, cy0 - 16, `SL ${fmtPrice(stop, env.decimals)}`, 'rgba(239,68,68,0.92)', 'left');
-    chip(ctx, env.w, x0, cy0 - 32, `TP ${fmtPrice(target, env.decimals)}`, 'rgba(34,197,94,0.92)', 'left');
+    chip(ctx, env.w, x0, cy0, `开仓 ${fmtPrice(entry, env.decimals)}`, hexToRgba(d.style.strokeColor, 0.92), 'left');
+    chip(ctx, env.w, x0, cy0 - 16, `止损 ${fmtPrice(stop, env.decimals)}`, 'rgba(239,68,68,0.92)', 'left');
+    chip(ctx, env.w, x0, cy0 - 32, `止盈 ${fmtPrice(target, env.decimals)}`, 'rgba(34,197,94,0.92)', 'left');
 
-    const riskTxt = `Risk ${fmtPrice(risk, env.decimals)}`;
-    const rewardTxt = `Reward ${fmtPrice(reward, env.decimals)}`;
-    const rrTxt = rr !== null ? `R:R ${rr.toFixed(2)}` : 'R:R —';
+    const riskTxt = `风险 ${fmtPrice(risk, env.decimals)}`;
+    const rewardTxt = `收益 ${fmtPrice(reward, env.decimals)}`;
+    const rrTxt = rr !== null ? `盈亏比 ${rr.toFixed(2)}` : '盈亏比 —';
     if (withRiskInputs && d.risk) {
       const accountSize = d.risk.accountSize;
       const riskPct = d.risk.riskPct;
       const riskAmount = accountSize * (riskPct / 100);
       const posSize = risk > 0 ? riskAmount / risk : 0;
       const lines = [
-        `Risk $${riskAmount.toFixed(2)} (${riskPct}% of $${accountSize.toLocaleString('en-US')})`,
-        `Reward ${rr !== null ? '$' + (riskAmount * rr).toFixed(2) : '—'}`,
+        `风险 $${riskAmount.toFixed(2)} (${riskPct}% · 资金 $${accountSize.toLocaleString('en-US')})`,
+        `收益 ${rr !== null ? '$' + (riskAmount * rr).toFixed(2) : '—'}`,
         rrTxt,
-        `Position size ${posSize.toFixed(4)}`,
+        `仓位大小 ${posSize.toFixed(4)}`,
       ];
       lines.forEach((line, i) => {
         chip(ctx, env.w, x1, cy0 - 32 - i * 16, line, hexToRgba(d.style.strokeColor, 0.92), 'right');

@@ -38,24 +38,31 @@ export function nearestIndexByTime(candles: Candle[], time: number): number {
   return Math.abs(time - left.time) <= Math.abs(right.time - time) ? Math.max(0, lo - 1) : lo;
 }
 
-export function formatCandleDate(time: number, timeframe: string): string {
-  const d = new Date(time * 1000);
-  if (timeframe === '1d') {
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  }
-  return d.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+const WEEKDAY_LABELS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
 }
 
+/** `2026-11-09 22:12` */
+export function formatISODateTime(time: number): string {
+  const d = new Date(time * 1000);
+  const ymd = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  return `${ymd} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+/** `周三 2026-11-09 22:12`（日线周期不带时分） */
+export function formatCandleDate(time: number, timeframe: string): string {
+  const d = new Date(time * 1000);
+  const ymd = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  if (timeframe === '1d') {
+    return `${WEEKDAY_LABELS[d.getDay()]} ${ymd}`;
+  }
+  return `${WEEKDAY_LABELS[d.getDay()]} ${ymd} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+/** `2026-11-09` */
 export function formatShortDate(time: number): string {
-  return new Date(time * 1000).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  const d = new Date(time * 1000);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }

@@ -73,10 +73,10 @@ async function fetchKlines(
   const res = await fetch(`${BINANCE_KLINES_URL}?${params.toString()}`, { signal });
   if (!res.ok) {
     if (res.status === 418 || res.status === 429) {
-      throw new Error('Rate limit reached. Waiting and retrying…');
+      throw new Error('触发限频，正在等待重试…');
     }
     if (res.status === 451) {
-      throw new Error('Market data is not available from your region.');
+      throw new Error('当前区域无法访问行情服务。');
     }
     if (res.status === 400) {
       throw new Error(`Invalid market data request (${symbol}/${interval}).`);
@@ -168,7 +168,7 @@ export async function fetchHistoricalCandles({
             if (err instanceof DOMException && err.name === 'AbortError') throw err;
             if (err instanceof TypeError) {
               throw new Error(
-                'Network error — could not reach the market data service. Check your connection.',
+                '网络错误——无法连接行情服务，请检查网络。',
               );
             }
             retries += 1;
@@ -268,10 +268,10 @@ async function fetchOandaBatch(
     signal,
   });
   if (res.status === 401) {
-    throw new Error('Invalid OANDA API key. Set it under Session → OANDA API key.');
+    throw new Error('OANDA 令牌无效，请在「会话 → OANDA 令牌」中重新设置。');
   }
   if (res.status === 403 || res.status === 429) {
-    throw new Error('OANDA rate limit reached. Try again in a moment.');
+    throw new Error('OANDA 触发限频，请稍后再试。');
   }
   if (!res.ok) {
     throw new Error(`OANDA market data request failed (HTTP ${res.status}).`);
@@ -309,7 +309,7 @@ export async function fetchOandaCandles({
 }: FetchOandaOptions): Promise<Candle[]> {
   const token = getOandaToken();
   if (!token) {
-    throw new Error('OANDA API key not set. Add it under Session → OANDA API key to load XAU/USD.');
+    throw new Error('未设置 OANDA 令牌，请在「会话 → OANDA 令牌」中填写后再加载 XAU/USD。');
   }
   const env = getOandaEnv();
   const granularity = OANDA_GRANULARITY[timeframe] ?? 'M15';
@@ -348,7 +348,7 @@ export async function fetchOandaCandles({
             if (err instanceof DOMException && err.name === 'AbortError') throw err;
             if (err instanceof TypeError) {
               throw new Error(
-                'Network error — could not reach OANDA. Check your connection.',
+                '网络错误——无法连接 OANDA，请检查网络。',
               );
             }
             retries += 1;

@@ -29,7 +29,7 @@ export function Badge({
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-sm border px-1.5 py-px text-[9px] font-semibold uppercase tracking-wider ${toneText[tone]} ${className}`}
+      className={`inline-flex items-center gap-1 rounded-sm border px-1.5 py-px text-[11px] font-semibold uppercase tracking-wider ${toneText[tone]} ${className}`}
     >
       {children}
     </span>
@@ -60,9 +60,9 @@ export function Button({
   const base =
     'inline-flex items-center justify-center gap-1.5 rounded-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40';
   const sizes = {
-    sm: 'h-7 px-2 text-[11px]',
-    md: 'h-8 px-3 text-[12px]',
-    lg: 'h-10 px-4 text-[13px]',
+    sm: 'h-7 px-2 text-[13px]',
+    md: 'h-8 px-3 text-[14px]',
+    lg: 'h-10 px-4 text-[15px]',
   };
   const variants = {
     primary: 'bg-accent text-white hover:bg-accent-hover',
@@ -100,7 +100,7 @@ export function Tooltip({
       {children}
       <span
         role="tooltip"
-        className={`pointer-events-none absolute left-1/2 z-40 -translate-x-1/2 whitespace-nowrap rounded-sm border border-bg-border bg-bg-panel px-2 py-1 font-mono text-[10px] text-text-primary opacity-0 shadow-neo-sm transition-opacity duration-100 group-hover:opacity-100 ${
+        className={`pointer-events-none absolute left-1/2 z-40 -translate-x-1/2 whitespace-nowrap rounded-sm border border-bg-border bg-bg-panel px-2 py-1 font-mono text-[12px] text-text-primary opacity-0 shadow-neo-sm transition-opacity duration-100 group-hover:opacity-100 ${
           side === 'top' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
         }`}
       >
@@ -150,14 +150,14 @@ export function Modal({
       >
         <div className="flex items-center justify-between border-b border-bg-border px-4 py-3">
           <div>
-            <h2 id={labelledBy} className="text-[14px] font-bold text-text-primary">
+            <h2 id={labelledBy} className="text-[15px] font-bold text-text-primary">
               {title}
             </h2>
-            {subtitle && <p className="text-[10px] text-text-muted">{subtitle}</p>}
+            {subtitle && <p className="text-[12px] text-text-muted">{subtitle}</p>}
           </div>
           <button
             onClick={onClose}
-            aria-label="Close dialog"
+            aria-label="关闭弹窗"
             className="text-text-muted hover:text-text-primary"
           >
             <X size={16} />
@@ -184,8 +184,8 @@ export function Stat({
   const toneCls = tone === 'up' ? 'text-up' : tone === 'down' ? 'text-down' : 'text-text-primary';
   return (
     <div className="rounded-sm border border-bg-border bg-bg-elevated px-2 py-1.5 text-center">
-      <div className="text-[9px] uppercase tracking-wider text-text-muted">{label}</div>
-      <div className={`font-mono text-[12px] font-bold ${toneCls} ${valueClass}`}>{value}</div>
+      <div className="text-[11px] uppercase tracking-wider text-text-muted">{label}</div>
+      <div className={`font-mono text-[14px] font-bold ${toneCls} ${valueClass}`}>{value}</div>
     </div>
   );
 }
@@ -222,8 +222,8 @@ export function EmptyState({
   return (
     <div className="flex flex-col items-center justify-center gap-2 px-4 py-8 text-center">
       {icon && <div className="text-text-muted">{icon}</div>}
-      <div className="text-[12px] font-semibold text-text-secondary">{title}</div>
-      {message && <p className="max-w-xs text-[11px] leading-snug text-text-muted">{message}</p>}
+      <div className="text-[14px] font-semibold text-text-secondary">{title}</div>
+      {message && <p className="max-w-xs text-[13px] leading-snug text-text-muted">{message}</p>}
       {action}
     </div>
   );

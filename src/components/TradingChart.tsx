@@ -31,12 +31,11 @@ import type { ClosedTrade, Position } from '../types/trading';
 import type { MagnetMode, ToolId as DrawingTool } from '../drawing';
 import { DrawingEngine, makeStorageKey } from '../drawing';
 import { ema, sma } from '../utils/indicators';
-import { nearestIndexByTime, formatCandleDate } from '../utils/candleUtils';
+import { nearestIndexByTime, formatCandleDate, formatISODateTime } from '../utils/candleUtils';
 import { formatPrice, formatVolume } from '../utils/tradingCalculations';
 import { DrawingToolbar } from './chart/DrawingToolbar';
 import { DrawingSettingsPanel } from './chart/DrawingSettingsPanel';
-import { Tooltip } from './ui';
-import { ArrowRightToLine, ScanSearch } from 'lucide-react';
+import { ArrowRightToLine, CalendarSearch, ScanSearch, X } from 'lucide-react';
 
 interface TradingChartProps {
   candles: Candle[];
@@ -58,6 +57,8 @@ interface TradingChartProps {
   followSignal: number;
   showIndicators?: boolean;
   showVolume?: boolean;
+  invertPriceScale?: boolean;
+  onUpdatePositionLevels?: (id: string, levels: { stopLoss?: number | null; takeProfit?: number | null }) => void;
   onChartReady?: (chart: IChartApi | null) => void;
 }
 
@@ -110,11 +111,11 @@ function tickMarkFormatter(time: Time, tickMarkType: TickMarkType): string {
   const ss = String(d.getSeconds()).padStart(2, '0');
   switch (tickMarkType) {
     case TickMarkType.Year:
-      return `'${String(d.getFullYear()).slice(2)}`;
+      return String(d.getFullYear());
     case TickMarkType.Month:
-      return d.toLocaleDateString('en-US', { month: 'short' });
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     case TickMarkType.DayOfMonth:
-      return String(d.getDate());
+      return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     case TickMarkType.Time:
       return `${hh}:${mm}`;
     case TickMarkType.TimeWithSeconds:
@@ -144,9 +145,13 @@ export function TradingChart({
   followSignal,
   showIndicators = true,
   showVolume = true,
+  invertPriceScale = false,
+  onUpdatePositionLevels,
   onChartReady,
 }: TradingChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const timeframeRef = useRef(timeframe);
+  timeframeRef.current = timeframe;
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
@@ -169,13 +174,16 @@ export function TradingChart({
 
   const [hover, setHover] = useState<Candle | null>(null);
   const [tool, setTool] = useState<DrawingTool>('select');
-  const [magnetMode, setMagnetMode] = useState<MagnetMode>('weak');
+  const [magnetMode, setMagnetMode] = useState<MagnetMode>('off');
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const [drawingsCount, setDrawingsCount] = useState(0);
+  const drawingsCountRef = useRef(0);
   const [, setDrawTick] = useState(0);
   const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null);
   const [awayFromEdge, setAwayFromEdge] = useState(false);
+  const [gotoOpen, setGotoOpen] = useState(false);
+  const [gotoValue, setGotoValue] = useState('');
   const drawingEngineRef = useRef<DrawingEngine | null>(null);
   const drawingActiveRef = useRef(false);
   drawingActiveRef.current = tool !== 'select';
@@ -189,6 +197,16 @@ export function TradingChart({
   candlesRef.current = candles;
   const autoFollowRef = useRef(autoFollow);
   autoFollowRef.current = autoFollow;
+  const positionsRef = useRef(positions);
+  positionsRef.current = positions;
+  const updateLevelsRef = useRef(onUpdatePositionLevels);
+  updateLevelsRef.current = onUpdatePositionLevels;
+  const draggingLevelRef = useRef<{
+    id: string;
+    kind: 'stop' | 'take' | 'entry';
+    /** 从开仓线拖出时：方向确定后本次拖拽固定写入的字段 */
+    field?: 'stop' | 'take';
+  } | null>(null);
   const isPlayingRef = useRef(isPlaying);
   isPlayingRef.current = isPlaying;
 
@@ -212,8 +230,8 @@ export function TradingChart({
       layout: {
         background: { type: ColorType.Solid, color: '#0b0f19' },
         textColor: COLORS.text,
-        fontSize: 11,
-        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+        fontSize: 13,
+        fontFamily: "'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif",
         attributionLogo: false,
       },
       grid: {
@@ -268,6 +286,8 @@ export function TradingChart({
       },
       localization: {
         priceFormatter: (p: number) => formatPrice(p, decimals),
+        timeFormatter: (time: Time) =>
+          typeof time === 'number' ? formatCandleDate(time, timeframeRef.current) : '',
       },
     });
     chartRef.current = chart;
@@ -291,7 +311,15 @@ export function TradingChart({
     drawingEngine.setOptions({
       onChange: () => {
         setDrawTick((v) => v + 1);
-        setDrawingsCount(drawingEngine.getDrawings().length);
+        const n = drawingEngine.getDrawings().length;
+        const grew = n > drawingsCountRef.current;
+        drawingsCountRef.current = n;
+        setDrawingsCount(n);
+        // 画完一个新图形后自动切回选择/移动工具（TradingView 习惯），图形保留可编辑
+        if (grew && drawingActiveRef.current) {
+          setTool('select');
+          drawingEngine.setTool('select');
+        }
       },
       onCursor: (cursor) => {
         if (container.style.cursor !== cursor) container.style.cursor = cursor;
@@ -443,6 +471,21 @@ export function TradingChart({
   useEffect(() => {
     volumeSeriesRef.current?.applyOptions({ visible: showVolume });
   }, [showVolume]);
+
+  // Invert the price scale (TradingView parity): flips the chart vertically so
+  // downtrends read as uptrends. Reset manual panning and refit so the flipped
+  // view lands on the current window instead of a stale range.
+  useEffect(() => {
+    chartRef.current?.applyOptions({ rightPriceScale: { invertScale: invertPriceScale } });
+    priceScaleManualRef.current = false;
+    setPriceScaleManual(false);
+    const cs = candleSeriesRef.current;
+    if (!cs || visible.length === 0) return;
+    const lr = chartRef.current?.timeScale().getVisibleLogicalRange();
+    if (!lr) return;
+    fitPriceScaleToCandles(cs.priceScale(), visible.slice(Math.max(0, Math.floor(lr.from))));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invertPriceScale]);
 
   // Data sync: only the visible (revealed) slice ever reaches the series.
   useEffect(() => {
@@ -614,6 +657,13 @@ export function TradingChart({
     const onKey = (e: KeyboardEvent) => {
       const engine = drawingEngineRef.current;
       if (!engine) return;
+      if (e.altKey && (e.key === 'g' || e.key === 'G')) {
+        if (isTyping(e)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        setGotoOpen((v) => !v);
+        return;
+      }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         if (isTyping(e)) return;
         e.preventDefault();
@@ -669,9 +719,38 @@ export function TradingChart({
       const rect = container.getBoundingClientRect();
       return [e.clientX - rect.left, e.clientY - rect.top];
     };
+    const hitTestLevel = (y: number): { id: string; kind: 'stop' | 'take' | 'entry' } | null => {
+      const cs = candleSeriesRef.current;
+      if (!cs) return null;
+      for (const p of positionsRef.current) {
+        if (typeof p.stopLoss === 'number' && p.stopLoss > 0) {
+          const ly = cs.priceToCoordinate(p.stopLoss);
+          if (ly !== null && Math.abs(ly - y) <= 6) return { id: p.id, kind: 'stop' };
+        }
+        if (typeof p.takeProfit === 'number' && p.takeProfit > 0) {
+          const ly = cs.priceToCoordinate(p.takeProfit);
+          if (ly !== null && Math.abs(ly - y) <= 6) return { id: p.id, kind: 'take' };
+        }
+        const ey = cs.priceToCoordinate(p.entryPrice);
+        if (ey !== null && Math.abs(ey - y) <= 6) return { id: p.id, kind: 'entry' };
+      }
+      return null;
+    };
+
     const onDown = (e: PointerEvent): void => {
       if (e.button !== 0) return;
       const [x, y] = getPos(e);
+      // SL/TP 线命中优先：进入拖拽，不进画图引擎
+      const hit = hitTestLevel(y);
+      if (hit) {
+        e.preventDefault();
+        draggingLevelRef.current = hit;
+        panStartRef.current = null;
+        if (!container.hasPointerCapture(e.pointerId)) {
+          container.setPointerCapture(e.pointerId);
+        }
+        return;
+      }
       panStartRef.current = [x, y];
       engine.onPointerDown(x, y, e.shiftKey);
       if (drawingActiveRef.current || engine.isDragging()) {
@@ -682,6 +761,45 @@ export function TradingChart({
     };
     const onMove = (e: PointerEvent): void => {
       const [x, y] = getPos(e);
+      const drag = draggingLevelRef.current;
+      if (drag) {
+        const cs = candleSeriesRef.current;
+        if (cs) {
+          const price = cs.coordinateToPrice(y);
+          if (price !== null) {
+            if (drag.kind === 'entry') {
+              // 从开仓线拖出：按拖动方向确定生成止损还是止盈，确定后本次固定
+              const pos = positionsRef.current.find((q) => q.id === drag.id);
+              if (pos && Math.abs(y - (cs.priceToCoordinate(pos.entryPrice) ?? y)) > 3) {
+                if (!drag.field) {
+                  const below = price < pos.entryPrice;
+                  const isLong = pos.direction === 'long';
+                  drag.field =
+                    below === isLong ? 'stop' : 'take'; // 多单往下=止损，往上=止盈；空单镜像
+                }
+                if (drag.field === 'stop') {
+                  updateLevelsRef.current?.(drag.id, { stopLoss: price });
+                } else {
+                  updateLevelsRef.current?.(drag.id, { takeProfit: price });
+                }
+              }
+            } else {
+              updateLevelsRef.current?.(
+                drag.id,
+                drag.kind === 'stop' ? { stopLoss: price } : { takeProfit: price },
+              );
+            }
+          }
+          container.style.cursor = 'ns-resize';
+        }
+        return;
+      }
+      if (!drawingActiveRef.current && !engine.isDragging()) {
+        if (hitTestLevel(y)) {
+          container.style.cursor = 'ns-resize';
+          return;
+        }
+      }
       const start = panStartRef.current;
       if (start) {
         const dx = x - start[0];
@@ -695,10 +813,12 @@ export function TradingChart({
       engine.onPointerMove(x, y, e.shiftKey);
     };
     const onUp = (): void => {
+      draggingLevelRef.current = null;
       panStartRef.current = null;
       engine.onPointerUp();
     };
     const onCancel = (): void => {
+      draggingLevelRef.current = null;
       panStartRef.current = null;
       engine.onPointerCancel();
     };
@@ -710,6 +830,16 @@ export function TradingChart({
       engine.onPointerLeave();
     };
 
+    // 右键 = 取消进行中的绘制 / 切回选择工具（TradingView 肌肉记忆）
+    const onContextMenu = (e: MouseEvent): void => {
+      e.preventDefault();
+      if (drawingActiveRef.current || engine.isDragging()) {
+        engine.cancel();
+      }
+      setTool('select');
+      engine.setTool('select');
+    };
+
     container.addEventListener('pointerdown', onDown);
     container.addEventListener('pointermove', onMove);
     container.addEventListener('dblclick', onDblClick);
@@ -717,6 +847,7 @@ export function TradingChart({
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onCancel);
     return () => {
+      container.removeEventListener('contextmenu', onContextMenu);
       container.removeEventListener('pointerdown', onDown);
       container.removeEventListener('pointermove', onMove);
       container.removeEventListener('dblclick', onDblClick);
@@ -807,7 +938,7 @@ export function TradingChart({
         position: 'belowBar',
         color: COLORS.accent,
         shape: 'circle',
-        text: 'Replay starts here',
+        text: '回放起点',
         size: 1,
       });
     }
@@ -819,7 +950,7 @@ export function TradingChart({
         position: 'belowBar',
         color: COLORS.accent,
         shape: 'circle',
-        text: 'Replay Starts Here',
+        text: '回放起点',
         size: 1,
       });
     }
@@ -884,7 +1015,7 @@ export function TradingChart({
             lineWidth: 1,
             lineStyle: LineStyle.Solid,
             axisLabelVisible: true,
-            title: 'Entry',
+            title: '开仓',
           }),
         );
         if (p.stopLoss) {
@@ -912,6 +1043,18 @@ export function TradingChart({
           );
         }
         priceLineRefs.current.set(p.id, newLines);
+      } else if (lines) {
+        // 已有线随最新值同步（拖动/改值后线跟手）
+        lines[0]?.applyOptions({ price: p.entryPrice, title: '开仓' });
+        let i = 1;
+        if (typeof p.stopLoss === 'number' && p.stopLoss > 0) {
+          lines[i]?.applyOptions({ price: p.stopLoss, title: 'SL' });
+          i += 1;
+        }
+        if (typeof p.takeProfit === 'number' && p.takeProfit > 0) {
+          lines[i]?.applyOptions({ price: p.takeProfit, title: 'TP' });
+          i += 1;
+        }
       }
     }
   }, [currentPrice, positions, decimals]);
@@ -942,13 +1085,13 @@ export function TradingChart({
 
   return (
     <div className="relative h-full w-full min-h-0">
-      <div ref={containerRef} className="h-full w-full" aria-label="Price chart" />
+      <div ref={containerRef} className="h-full w-full" aria-label="行情图表" />
       <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center">
         <span className="select-none font-mono text-[56px] font-black uppercase leading-none tracking-widest text-white/[0.04]">
-          {candles.length === 0 ? 'No Data' : replayActive ? 'Replay' : symbol}
+          {candles.length === 0 ? '无数据' : replayActive ? '回放' : symbol}
         </span>
       </div>
-      <div className="absolute bottom-2 left-1/2 z-20 flex max-w-[calc(100%-16px)] -translate-x-1/2 items-start gap-2 md:left-2 md:translate-x-0">
+      <div className="absolute bottom-2 left-2 z-20 flex max-w-[calc(100%-16px)] items-start gap-2">
         <DrawingToolbar
           tool={tool}
           onToolChange={handleToolChange}
@@ -998,11 +1141,114 @@ export function TradingChart({
           />
         )}
       </div>
+      {/* Top-right chart tools: go-to-time + price-scale reset (TradingView parity). */}
+      <div className="absolute right-2 top-2 z-20 flex flex-col gap-1">
+        <button
+          type="button"
+          title="跳转到时间 (Alt+G)"
+          aria-label="跳转到时间"
+          onClick={() => {
+            const last = visible[visible.length - 1] ?? candles[candles.length - 1];
+            if (last) {
+              const d = new Date(last.time * 1000);
+              const p = (n: number) => String(n).padStart(2, '0');
+              setGotoValue(
+                `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`,
+              );
+            }
+            setGotoOpen(true);
+          }}
+          className="flex h-7 w-7 items-center justify-center rounded-sm border border-bg-border bg-bg-panel/95 text-text-secondary shadow-neo-sm transition-colors hover:border-accent hover:text-text-primary"
+        >
+          <CalendarSearch size={14} />
+        </button>
+        {priceScaleManual && visible.length > 0 && (
+          <button
+            type="button"
+            title="重置价格刻度"
+            aria-label="重置价格刻度为自适应"
+            onClick={() => {
+              const cs = candleSeriesRef.current;
+              if (!cs) return;
+              const ps = cs.priceScale();
+              const lr = chartRef.current?.timeScale().getVisibleLogicalRange();
+              priceScaleManualRef.current = false;
+              setPriceScaleManual(false);
+              if (lr) fitPriceScaleToCandles(ps, visible.slice(Math.max(0, Math.floor(lr.from))));
+            }}
+            className="flex h-7 w-7 items-center justify-center rounded-sm border border-bg-border bg-bg-panel/95 text-text-secondary shadow-neo-sm transition-colors hover:border-accent hover:text-text-primary"
+          >
+            <ScanSearch size={14} />
+          </button>
+        )}
+      </div>
+      {gotoOpen && (
+        <div
+          className="absolute right-2 top-11 z-30 w-[264px] rounded-md border border-bg-border bg-bg-panel/95 p-3 shadow-neo backdrop-blur-sm animate-fade-in"
+          onPointerDown={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-label="跳转到时间"
+        >
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[13px] font-bold text-text-primary">跳转到时间</span>
+            <button
+              type="button"
+              onClick={() => setGotoOpen(false)}
+              aria-label="关闭"
+              className="text-text-muted hover:text-text-primary"
+            >
+              <X size={14} />
+            </button>
+          </div>
+          <input
+            type="datetime-local"
+            value={gotoValue}
+            onChange={(e) => setGotoValue(e.target.value)}
+            aria-label="目标时间"
+            className="h-8 w-full rounded-sm border border-bg-border bg-bg-elevated px-2 font-mono text-[13px] text-text-primary outline-none focus:border-accent"
+          />
+          {(() => {
+            const first = candles[0];
+            const last = candles[candles.length - 1];
+            if (!first || !last) return null;
+            return (
+              <p className="mt-1.5 font-mono text-[11px] leading-snug text-text-muted">
+                数据范围：{formatISODateTime(first.time)} ~ {formatISODateTime(last.time)}
+              </p>
+            );
+          })()}
+          <button
+            type="button"
+            onClick={() => {
+              const ms = new Date(gotoValue).getTime();
+              if (!Number.isFinite(ms)) return;
+              const idx = nearestIndexByTime(candles, Math.floor(ms / 1000));
+              if (idx < 0) return;
+              const ts = chartRef.current?.timeScale();
+              if (!ts) return;
+              const span = 160;
+              ts.setVisibleLogicalRange({
+                from: Math.max(0, idx - Math.floor(span * 0.75)),
+                to: idx + Math.ceil(span * 0.25),
+              });
+              const cs = candleSeriesRef.current;
+              if (cs) fitPriceScaleToCandles(cs.priceScale(), candles.slice(Math.max(0, idx - span), idx + 40));
+              atRightEdgeRef.current = false;
+              setAwayFromEdge(true);
+              setGotoOpen(false);
+            }}
+            autoFocus
+            className="mt-2 w-full rounded-sm bg-accent px-3 py-2 text-[13px] font-bold text-white transition-colors hover:bg-accent-hover"
+          >
+            跳转
+          </button>
+        </div>
+      )}
       {/* Back-to-latest: shown while scrolled away from the newest bar (TradingView parity). */}
       {awayFromEdge && visible.length > 0 && (
-        <Tooltip content="Back to latest bar">
-          <button
-            onClick={() => {
+        <button
+          title="回到最新 K 线"
+          onClick={() => {
               const ts = chartRef.current?.timeScale();
               if (!ts) return;
               const r = ts.getVisibleLogicalRange();
@@ -1014,62 +1260,40 @@ export function TradingChart({
                 to: last + span / 2,
               });
             }}
-            aria-label="Scroll to the latest bar"
-            className="absolute bottom-10 right-2 z-20 flex h-7 w-7 items-center justify-center rounded-sm border border-bg-border bg-bg-panel/95 text-text-secondary shadow-neo-sm transition-colors hover:border-accent hover:text-text-primary"
-          >
-            <ArrowRightToLine size={14} />
-          </button>
-        </Tooltip>
-      )}
-      {/* Price-scale reset: shown while the user has manually panned/zoomed the
-          price axis, so replay autoscale can be re-engaged (TradingView parity). */}
-      {priceScaleManual && visible.length > 0 && (
-        <Tooltip content="Reset price scale">
-          <button
-            onClick={() => {
-              const cs = candleSeriesRef.current;
-              if (!cs) return;
-              const ps = cs.priceScale();
-              const lr = chartRef.current?.timeScale().getVisibleLogicalRange();
-              priceScaleManualRef.current = false;
-              setPriceScaleManual(false);
-              if (lr) fitPriceScaleToCandles(ps, visible.slice(Math.max(0, Math.floor(lr.from))));
-            }}
-            aria-label="Reset price scale to auto-fit"
-            className="absolute right-2 top-2 z-20 flex h-7 w-7 items-center justify-center rounded-sm border border-bg-border bg-bg-panel/95 text-text-secondary shadow-neo-sm transition-colors hover:border-accent hover:text-text-primary"
-          >
-            <ScanSearch size={14} />
-          </button>
-        </Tooltip>
+          aria-label="跳到最新 K 线"
+          className="absolute bottom-10 right-2 z-20 flex h-7 w-7 items-center justify-center rounded-sm border border-bg-border bg-bg-panel/95 text-text-secondary shadow-neo-sm transition-colors hover:border-accent hover:text-text-primary"
+        >
+          <ArrowRightToLine size={14} />
+        </button>
       )}
       {/* Legend overlay */}
       <div
-        className={`pointer-events-none absolute left-2 z-10 font-mono text-[11px] leading-relaxed text-text-secondary ${
+        className={`pointer-events-none absolute left-2 z-10 font-mono text-[13px] leading-relaxed text-text-secondary ${
           replayActive ? 'top-2 lg:top-[140px]' : 'top-2'
         }`}
       >
         <div className="flex items-center gap-2">
           <span className="font-semibold text-text-primary">{symbol}</span>
-          <span className="rounded-sm bg-bg-elevated px-1.5 py-px text-[10px] text-text-secondary">
+          <span className="rounded-sm bg-bg-elevated px-1.5 py-px text-[12px] text-text-secondary">
             {timeframe}
           </span>
         </div>
         {hovered && (
           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
             <span>
-              <span className="text-text-muted">O</span>{' '}
+              <span className="text-text-muted">开</span>{' '}
               <span className="text-text-primary">{formatPrice(hovered.open, decimals)}</span>
             </span>
             <span>
-              <span className="text-text-muted">H</span>{' '}
+              <span className="text-text-muted">高</span>{' '}
               <span className="text-text-primary">{formatPrice(hovered.high, decimals)}</span>
             </span>
             <span>
-              <span className="text-text-muted">L</span>{' '}
+              <span className="text-text-muted">低</span>{' '}
               <span className="text-text-primary">{formatPrice(hovered.low, decimals)}</span>
             </span>
             <span>
-              <span className="text-text-muted">C</span>{' '}
+              <span className="text-text-muted">收</span>{' '}
               <span
                 className={
                   hovered.close >= prevClose ? 'text-up' : 'text-down'
@@ -1079,7 +1303,7 @@ export function TradingChart({
               </span>
             </span>
             <span>
-              <span className="text-text-muted">VOL</span>{' '}
+              <span className="text-text-muted">量</span>{' '}
               <span className="text-text-primary">{formatVolume(hovered.volume)}</span>
             </span>
             {indicatorValues && (

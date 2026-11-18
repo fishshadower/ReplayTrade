@@ -693,6 +693,17 @@ export class DrawingEngine implements ISeriesPrimitive<Time> {
         startY: y,
       };
     }
+    // 仓位类工具：点满即成形（TV 式单击出图），不等双击
+    if (
+      this.draft &&
+      (this.draft.type === 'longPosition' ||
+        this.draft.type === 'shortPosition' ||
+        this.draft.type === 'riskReward') &&
+      this.draft.points.length >= MIN_POINTS[this.draft.type]
+    ) {
+      this.commitDraft();
+      return;
+    }
     this.setPanEnabled(false);
     this.requestRender();
     this.notify();
@@ -978,6 +989,27 @@ export class DrawingEngine implements ISeriesPrimitive<Time> {
     const def = getToolDef(type);
     if (!def) return;
     if (draft.points.length < MIN_POINTS[type]) return;
+
+    // 仓位类工具：单击成形（1 点→止损默认 1%、止盈 2R；2 点→止盈按 2R 外推），画完拖手柄调。
+    // 止损/止盈点 time 向右偏移 12 根，形成"入场在鼠标处、向右展开"的矩形（三点同 time 会渲染成竖线）。
+    if (type === 'longPosition' || type === 'shortPosition' || type === 'riskReward') {
+      const e = draft.points[0];
+      const tf = this.tfSeconds || 300;
+      if (e) {
+        const rightTime = e.time + 12 * tf;
+        if (draft.points.length === 1) {
+          const isLong = type !== 'shortPosition';
+          const stop = isLong ? e.price * 0.99 : e.price * 1.01;
+          draft.points.push({ time: rightTime, price: stop });
+          draft.points.push({ time: rightTime, price: e.price + (e.price - stop) * 2 });
+        } else if (draft.points.length === 2) {
+          const s = draft.points[1];
+          if (s) {
+            draft.points.push({ time: rightTime, price: e.price + (e.price - s.price) * 2 });
+          }
+        }
+      }
+    }
 
     const spec = def.build(draft.points, { ...this.currentStyle });
     const drawing: Drawing = {

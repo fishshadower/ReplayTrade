@@ -243,7 +243,15 @@ export class DrawingHitTester {
       case 'shortPosition':
       case 'riskReward': {
         if (pts.length < 3) return false;
-        return distToPolygon(x, y, pts.slice(0, 3)) <= LINE_HIT_TOLERANCE;
+        if (distToPolygon(x, y, pts.slice(0, 3)) <= LINE_HIT_TOLERANCE) return true;
+        // 整个填充区域 bbox 内均可命中（TV 式：区域内任意点按住即可拖动）
+        const trio = [pts[0], pts[1], pts[2]];
+        if (trio.some((p) => !p)) return false;
+        const xs = trio.map((p) => p![0]);
+        const ys = trio.map((p) => p![1]);
+        return (
+          x >= Math.min(...xs) && x <= Math.max(...xs) && y >= Math.min(...ys) && y <= Math.max(...ys)
+        );
       }
       default:
         return false;

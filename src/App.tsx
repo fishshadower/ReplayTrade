@@ -6,6 +6,7 @@ import {
   BarChart3,
   Briefcase,
   CircleHelp,
+  FolderOpen,
   History,
   Info,
   PanelLeftClose,
@@ -35,11 +36,20 @@ import type { DataSource, DataSourceOption, Timeframe } from './types/market';
 import { SYMBOLS, TIME_FRAMES, availableSources, marketSourceFor, persistSourceChoice } from './types/market';
 import type { OrderDraft } from './types/trading';
 import type { ReplayState } from './types/replay';
-import { combinePerformance, formatCurrency, formatPrice } from './utils/tradingCalculations';
+import { combinePerformance, formatCurrency, formatPrice, positionPnl } from './utils/tradingCalculations';
 import { REPLAY_SPEEDS } from './utils/replayEngine';
 import type { DataRange } from './hooks/useMarketData';
 import type { LoadProgress } from './services/marketDataService';
 import { formatShortDate } from './utils/candleUtils';
+import {
+  addSession,
+  clearSessions,
+  deleteSession,
+  loadSessions,
+  updateSessionNote,
+} from './utils/sessionStore';
+import type { ReplaySessionRecord } from './utils/sessionStore';
+import { ReplaySessionsPanel } from './components/ReplaySessionsPanel';
 
 const STORAGE_SYMBOL = 'replaytrade:symbol';
 const STORAGE_TF = 'replaytrade:timeframe';
@@ -53,7 +63,7 @@ interface Toast {
 }
 
 let toastId = 0;
-type BottomTab = 'positions' | 'history' | 'stats' | 'session';
+type BottomTab = 'positions' | 'history' | 'stats' | 'session' | 'sessions';
 
 function loadPref<T>(key: string, fallback: T): T {
   try {
@@ -75,6 +85,15 @@ function loadStoredTimeframe(): Timeframe {
   return (TIME_FRAMES as readonly string[]).includes(v) ? (v as Timeframe) : '15m';
 }
 
+const REPLAY_MODE_LABELS: Record<string, string> = {
+  idle: '未开始',
+  selecting: '选择起点中',
+  ready: '就绪',
+  playing: '播放中',
+  paused: '已暂停',
+  completed: '已完成',
+};
+
 export default function App() {
   const [symbol, setSymbol] = useState<string>(() => loadStoredSymbol());
   const [timeframe, setTimeframe] = useState<Timeframe>(() => loadStoredTimeframe());
@@ -87,8 +106,10 @@ export default function App() {
   const [orderSheetOpen, setOrderSheetOpen] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [equitySeries, setEquitySeries] = useState<number[]>([]);
+  const [sessions, setSessions] = useState<ReplaySessionRecord[]>(() => loadSessions());
   const [showIndicators, setShowIndicators] = useState(true);
   const [showVolume, setShowVolume] = useState(true);
+  const [invertPriceScale, setInvertPriceScale] = useState(false);
   const [onboarded, setOnboarded] = useState<boolean>(() => isOnboarded());
   const [showHelp, setShowHelp] = useState(false);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
@@ -209,6 +230,7 @@ export default function App() {
   useEffect(() => {
     if (market.candles.length === 0) return;
     replay.setCandles(market.candles);
+    archiveRef.current(null);
     paper.startSession(balanceSetting);
     lastProcessedRef.current = -1;
     completionHandledRef.current = false;
@@ -227,9 +249,21 @@ export default function App() {
     });
   }, [paper.equity, market.candles.length]);
 
+  /** 归档当前会话为一批（有成交才建档，同批只封一次）。 */
+  const archiveCurrentSession = useCallback(
+    (replayStartTime: number | null) => {
+      const rec = paper.archiveSession({ symbol, timeframe, replayStartTime });
+      if (rec) setSessions(addSession(rec));
+    },
+    [paper.archiveSession, symbol, timeframe],
+  );
+  const archiveRef = useRef(archiveCurrentSession);
+  archiveRef.current = archiveCurrentSession;
+
   const beginReplayRun = useCallback(
     (index: number) => {
       const candle = replay.state.candles[index];
+      archiveCurrentSession(candle ? candle.time : null);
       replay.confirmStart(index);
       paper.startSession(balanceSetting);
       setEquitySeries([]);
@@ -238,7 +272,14 @@ export default function App() {
       completionHandledRef.current = false;
       paper.updatePrice(candle?.close ?? 0);
     },
-    [replay.confirmStart, replay.state.candles, paper.startSession, paper.updatePrice, balanceSetting],
+    [
+      replay.confirmStart,
+      replay.state.candles,
+      paper.startSession,
+      paper.updatePrice,
+      balanceSetting,
+      archiveCurrentSession,
+    ],
   );
 
   const handleSelectCandle = useCallback(
@@ -318,10 +359,10 @@ export default function App() {
         const { closedTrades } = paper.processTick(c);
         closedTrades.forEach((t) =>
           notify(
-            `${t.symbol} ${t.direction === 'long' ? 'long' : 'short'} closed @ ${formatPrice(
+            `${t.symbol} ${t.direction === 'long' ? '多头' : '空头'} 平仓 @ ${formatPrice(
               t.exitPrice,
               decimals,
-            )} — ${t.exitReason === 'stop-loss' ? 'stop-loss hit' : 'take-profit hit'} (${formatCurrency(
+            )} — ${t.exitReason === 'stop-loss' ? '止损触发' : '止盈触发'} (${formatCurrency(
               t.pnl,
             )})`,
             t.pnl >= 0 ? 'success' : 'danger',
@@ -355,12 +396,15 @@ export default function App() {
         const trades = paper.closeAllAtPrice(price, 'replay-ended', closedAt);
         trades.forEach((t) =>
           notify(
-            `${t.symbol} ${t.direction === 'long' ? 'long' : 'short'} closed at replay end (${formatCurrency(
+            `${t.symbol} ${t.direction === 'long' ? '多头' : '空头'} 回放结束自动平仓 (${formatCurrency(
               t.pnl,
             )})`,
             t.pnl >= 0 ? 'success' : 'danger',
           ),
         );
+        const startIdx = replay.state.replayStartIndex;
+        const startCandle = startIdx !== null ? candles[startIdx] : undefined;
+        archiveRef.current(startCandle ? startCandle.time : null);
       }
     }
   }, [replay.state.mode, replay.state.candles, paper.closeAllAtPrice, notify]);
@@ -372,10 +416,10 @@ export default function App() {
       const result = paper.openPosition(draft, openedAt);
       if (result.ok) {
         notify(
-          `${draft.direction === 'long' ? 'Buy' : 'Sell'} ${draft.quantity} ${symbol} @ ${formatPrice(
+          `${draft.direction === 'long' ? '买入' : '卖出'} ${draft.quantity} ${symbol} @ ${formatPrice(
             draft.entryPrice,
             decimals,
-          )} — simulated`,
+          )} — 模拟单`,
           'success',
         );
         setOrderSheetOpen(false);
@@ -394,7 +438,7 @@ export default function App() {
       const t = paper.closePositionById(id, closedAt);
       if (t) {
         notify(
-          `Closed ${t.symbol} ${t.direction === 'long' ? 'long' : 'short'} @ ${formatPrice(
+          `已平仓 ${t.symbol} ${t.direction === 'long' ? '多头' : '空头'} @ ${formatPrice(
             t.exitPrice,
             decimals,
           )} (${formatCurrency(t.pnl)})`,
@@ -412,7 +456,7 @@ export default function App() {
       const t = paper.closeHalf(id, closedAt);
       if (t) {
         notify(
-          `Closed 50% of ${t.symbol} @ ${formatPrice(t.exitPrice, decimals)} (${formatCurrency(t.pnl)})`,
+          `减仓 50% ${t.symbol} @ ${formatPrice(t.exitPrice, decimals)} (${formatCurrency(t.pnl)})`,
           t.pnl >= 0 ? 'success' : 'danger',
         );
       }
@@ -483,6 +527,9 @@ export default function App() {
         const idx = speeds.indexOf(replay.state.speed);
         replay.setSpeed(REPLAY_SPEEDS[Math.max(0, idx - 1)]!);
       } else if (e.key === 'Escape') {
+        const startIdx = replay.state.replayStartIndex;
+        const startCandle = startIdx !== null ? replay.state.candles[startIdx] : undefined;
+        archiveRef.current(startCandle ? startCandle.time : null);
         replay.exitReplay();
       }
     };
@@ -535,6 +582,8 @@ export default function App() {
         followSignal={replay.followSignal}
         showIndicators={showIndicators}
         showVolume={showVolume}
+        invertPriceScale={invertPriceScale}
+        onUpdatePositionLevels={paper.updatePositionLevels}
         onChartReady={handleChartReady}
       />
       {market.loading && <LoadingOverlay progress={market.progress} />}
@@ -570,10 +619,11 @@ export default function App() {
   const chartNode = renderChart();
 
   const tabButtons: { id: BottomTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'positions', label: 'Positions', icon: <Briefcase size={13} /> },
-    { id: 'history', label: 'Trade History', icon: <History size={13} /> },
-    { id: 'stats', label: 'Statistics', icon: <BarChart3 size={13} /> },
-    { id: 'session', label: 'Session', icon: <Info size={13} /> },
+    { id: 'positions', label: '持仓', icon: <Briefcase size={13} /> },
+    { id: 'history', label: '历史成交', icon: <History size={13} /> },
+    { id: 'stats', label: '统计', icon: <BarChart3 size={13} /> },
+    { id: 'session', label: '会话', icon: <Info size={13} /> },
+    { id: 'sessions', label: '回放记录', icon: <FolderOpen size={13} /> },
   ];
 
   return (
@@ -599,6 +649,9 @@ export default function App() {
         canStartReplay={canStartReplay}
         onStartReplay={handleStartReplay}
         onExitReplay={() => {
+          const startIdx = replay.state.replayStartIndex;
+          const startCandle = startIdx !== null ? replay.state.candles[startIdx] : undefined;
+          archiveCurrentSession(startCandle ? startCandle.time : null);
           replay.exitReplay();
           setSelectedIndex(null);
         }}
@@ -609,6 +662,8 @@ export default function App() {
         onToggleFullscreen={toggleFullscreen}
         chartExpanded={chartExpanded}
         onToggleChartExpanded={toggleChartExpanded}
+        invertPriceScale={invertPriceScale}
+        onToggleInvertPriceScale={() => setInvertPriceScale((v) => !v)}
         onShowHelp={() => setShowHelp(true)}
         onTakeScreenshot={handleTakeScreenshot}
       />
@@ -623,8 +678,8 @@ export default function App() {
           {leftCollapsed ? (
             <button
               onClick={() => setLeftCollapsed(false)}
-              aria-label="Expand left panel"
-              title="Expand left panel"
+              aria-label="展开左侧面板"
+              title="展开左侧面板"
               className="mx-auto flex h-8 w-full items-center justify-center rounded-sm text-text-muted hover:bg-bg-hover hover:text-text-primary"
             >
               <PanelLeftOpen size={15} />
@@ -632,13 +687,13 @@ export default function App() {
           ) : (
             <>
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">
-                  Markets
+                <span className="text-[12px] font-semibold uppercase tracking-wider text-text-muted">
+                  市场
                 </span>
                 <button
                   onClick={() => setLeftCollapsed(true)}
-                  aria-label="Collapse left panel"
-                  title="Collapse left panel"
+                  aria-label="收起左侧面板"
+                  title="收起左侧面板"
                   className="rounded-sm p-1 text-text-muted hover:bg-bg-hover hover:text-text-primary"
                 >
                   <PanelLeftClose size={14} />
@@ -716,8 +771,8 @@ export default function App() {
           {rightCollapsed ? (
             <button
               onClick={() => setRightCollapsed(false)}
-              aria-label="Expand right panel"
-              title="Expand right panel"
+              aria-label="展开右侧面板"
+              title="展开右侧面板"
               className="mx-auto flex h-8 w-full items-center justify-center rounded-sm text-text-muted hover:bg-bg-hover hover:text-text-primary"
             >
               <PanelRightOpen size={15} />
@@ -727,14 +782,14 @@ export default function App() {
               <div className="mb-2 flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Activity size={14} className="text-accent" />
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">
-                    Trade Panel
+                  <span className="text-[12px] font-semibold uppercase tracking-wider text-text-muted">
+                    交易面板
                   </span>
                 </div>
                 <button
                   onClick={() => setRightCollapsed(true)}
-                  aria-label="Collapse right panel"
-                  title="Collapse right panel"
+                  aria-label="收起右侧面板"
+                  title="收起右侧面板"
                   className="rounded-sm p-1 text-text-muted hover:bg-bg-hover hover:text-text-primary"
                 >
                   <PanelRightClose size={14} />
@@ -748,12 +803,63 @@ export default function App() {
                 disabled={tradingDisabled}
                 onPlaceOrder={handlePlaceOrder}
               />
-              <div className="mt-3 rounded-sm border border-bg-border bg-bg-panel p-2.5 font-mono text-[11px]">
-                <AccountRow label="Equity" value={formatCurrency(paper.equity)} />
-                <AccountRow label="Available" value={formatCurrency(paper.available)} />
-                <AccountRow label="Open value" value={formatCurrency(paper.openValue)} />
+              {paper.state.positions.length > 0 && (
+                <div className="mt-3 rounded-sm border border-bg-border bg-bg-panel p-2.5">
+                  <div className="mb-1 text-[12px] font-semibold uppercase tracking-wider text-text-muted">
+                    持仓操作
+                  </div>
+                  <div className="divide-y divide-bg-border/60">
+                    {paper.state.positions.map((p) => {
+                      const pnl = positionPnl(p, paper.currentPrice);
+                      return (
+                        <div key={p.id} className="py-2 first:pt-1 last:pb-0.5">
+                          <div className="flex items-center justify-between font-mono text-[13px]">
+                            <span className="flex items-center gap-1.5">
+                              <span
+                                className={`rounded-sm px-1.5 py-px text-[12px] font-bold ${
+                                  p.direction === 'long' ? 'bg-up-dim text-up' : 'bg-down-dim text-down'
+                                }`}
+                              >
+                                {p.direction === 'long' ? '多头' : '空头'}
+                              </span>
+                              <span className="text-text-secondary">{p.remaining}</span>
+                            </span>
+                            <span className={`font-bold ${pnl >= 0 ? 'text-up' : 'text-down'}`}>
+                              {formatCurrency(pnl)}
+                            </span>
+                          </div>
+                          <div className="mt-1.5 grid grid-cols-3 gap-1.5">
+                            <button
+                              onClick={() => handleClosePosition(p.id)}
+                              className="rounded-sm bg-down px-2 py-1.5 text-[13px] font-bold text-white transition-colors hover:bg-red-600"
+                            >
+                              平仓
+                            </button>
+                            <button
+                              onClick={() => handleCloseHalf(p.id)}
+                              className="rounded-sm border border-bg-border px-2 py-1.5 text-[13px] font-semibold text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
+                            >
+                              平一半
+                            </button>
+                            <button
+                              onClick={() => paper.moveStopToEntry(p.id)}
+                              className="rounded-sm border border-bg-border px-2 py-1.5 text-[13px] font-semibold text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary"
+                            >
+                              SL → 开仓
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              <div className="mt-3 rounded-sm border border-bg-border bg-bg-panel p-2.5 font-mono text-[13px]">
+                <AccountRow label="权益" value={formatCurrency(paper.equity)} />
+                <AccountRow label="可用余额" value={formatCurrency(paper.available)} />
+                <AccountRow label="持仓价值" value={formatCurrency(paper.openValue)} />
                 <AccountRow
-                  label="Unrealized"
+                  label="未实现盈亏"
                   value={formatCurrency(paper.unrealizedPnl)}
                   tone={paper.unrealizedPnl >= 0 ? 'up' : 'down'}
                 />
@@ -772,7 +878,7 @@ export default function App() {
         <div
           className="flex items-center gap-1 overflow-x-auto border-b border-bg-border px-2 pt-1.5"
           role="tablist"
-          aria-label="Trading panels"
+          aria-label="交易面板"
         >
           {tabButtons.map((t) => (
             <button
@@ -780,7 +886,7 @@ export default function App() {
               role="tab"
               aria-selected={activeTab === t.id}
               onClick={() => setActiveTab(t.id)}
-              className={`flex items-center gap-1.5 whitespace-nowrap rounded-t-sm border-b-2 px-3 py-2 text-[11px] font-semibold transition-colors ${
+              className={`flex items-center gap-1.5 whitespace-nowrap rounded-t-sm border-b-2 px-3 py-2 text-[13px] font-semibold transition-colors ${
                 activeTab === t.id
                   ? 'border-accent text-accent'
                   : 'border-transparent text-text-secondary hover:text-text-primary'
@@ -788,7 +894,7 @@ export default function App() {
             >
               {t.icon} {t.label}
               {t.id === 'positions' && paper.state.positions.length > 0 && (
-                <span className="ml-0.5 rounded-sm bg-accent px-1 text-[9px] font-bold text-white">
+                <span className="ml-0.5 rounded-sm bg-accent px-1 text-[11px] font-bold text-white">
                   {paper.state.positions.length}
                 </span>
               )}
@@ -797,18 +903,18 @@ export default function App() {
           <button
             onClick={() => setOrderSheetOpen(true)}
             disabled={tradingDisabled}
-            title={replayActive ? 'Place order' : 'Start a replay to trade'}
-            className="ml-auto flex items-center gap-1.5 rounded-sm bg-accent px-3 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40 lg:hidden"
+            title={replayActive ? '下单' : '先开始回放才能交易'}
+            className="ml-auto flex items-center gap-1.5 rounded-sm bg-accent px-3 py-1.5 text-[13px] font-bold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40 lg:hidden"
           >
-            Trade
+            下单
           </button>
           <button
             onClick={() => setShowHelp(true)}
-            aria-label="Keyboard shortcuts and help"
-            title="Shortcuts (Alt+H)"
-            className="ml-auto hidden items-center gap-1 rounded-sm border border-bg-border bg-bg-elevated px-2 py-1.5 text-[11px] font-semibold text-text-secondary transition-colors hover:border-accent hover:text-text-primary lg:flex"
+            aria-label="快捷键与帮助"
+            title="快捷键 (Alt+H)"
+            className="ml-auto hidden items-center gap-1 rounded-sm border border-bg-border bg-bg-elevated px-2 py-1.5 text-[13px] font-semibold text-text-secondary transition-colors hover:border-accent hover:text-text-primary lg:flex"
           >
-            <CircleHelp size={13} /> Shortcuts
+            <CircleHelp size={13} /> 快捷键
           </button>
         </div>
         <div className="max-h-[220px] overflow-y-auto lg:max-h-[240px]">
@@ -833,6 +939,15 @@ export default function App() {
               realizedPnl={paper.state.realizedPnl}
               unrealizedPnl={paper.unrealizedPnl}
               currentEquity={paper.equity}
+            />
+          )}
+          {activeTab === 'sessions' && (
+            <ReplaySessionsPanel
+              sessions={sessions}
+              decimals={decimals}
+              onDelete={(id) => setSessions(deleteSession(id))}
+              onClear={() => setSessions(clearSessions())}
+              onUpdateNote={(id, note) => setSessions(updateSessionNote(id, note))}
             />
           )}
           {activeTab === 'session' && (
@@ -860,12 +975,11 @@ export default function App() {
 
       {/* Disclaimer */}
       <div
-        className={`shrink-0 border-t border-bg-border bg-bg-base px-3 py-1 text-center font-mono text-[9px] text-text-muted ${
+        className={`shrink-0 border-t border-bg-border bg-bg-base px-3 py-1 text-center font-mono text-[11px] text-text-muted ${
           chartExpanded ? '!hidden' : ''
         }`}
       >
-        Simulated trading environment. Market data may be delayed or unavailable. Educational use
-        only. Not financial advice.
+        模拟交易环境，行情数据可能延迟或不可用。仅供学习使用，不构成投资建议。
       </div>
 
       {/* Mobile order bottom sheet */}
@@ -876,17 +990,17 @@ export default function App() {
             className="relative max-h-[82%] overflow-y-auto rounded-t-md border-t border-bg-border bg-bg-panel p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-neo animate-fade-in"
             role="dialog"
             aria-modal="true"
-            aria-label="Place order"
+            aria-label="下单"
           >
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <Activity size={14} className="text-accent" />
-                <span className="text-[12px] font-bold text-text-primary">Place Order</span>
-                <span className="font-mono text-[10px] text-text-muted">{symbol}</span>
+                <span className="text-[14px] font-bold text-text-primary">下单</span>
+                <span className="font-mono text-[12px] text-text-muted">{symbol}</span>
               </div>
               <button
                 onClick={() => setOrderSheetOpen(false)}
-                aria-label="Close order panel"
+                aria-label="关闭下单面板"
                 className="text-text-muted hover:text-text-primary"
               >
                 <X size={16} />
@@ -939,18 +1053,18 @@ export default function App() {
           <div
             key={t.id}
             role="status"
-            className={`pointer-events-none flex items-start gap-2 rounded-sm border px-3 py-2 font-mono text-[11px] shadow-neo-sm animate-fade-in ${
+            className={`pointer-events-none flex items-start gap-2 rounded-sm border px-3 py-2 font-mono text-[13px] shadow-neo-sm animate-fade-in ${
               t.tone === 'success'
-                ? 'border-up/50 bg-up-dim text-up'
+                ? 'border-up/60 bg-bg-elevated text-up'
                 : t.tone === 'danger'
-                  ? 'border-down/50 bg-down-dim text-down'
-                  : 'border-accent/50 bg-bg-panel text-accent'
+                  ? 'border-down/60 bg-bg-elevated text-down'
+                  : 'border-accent/60 bg-bg-elevated text-accent'
             }`}
           >
             <span className="flex-1">{t.message}</span>
             <button
               onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
-              aria-label="Dismiss"
+              aria-label="关闭"
               className="pointer-events-auto opacity-60 hover:opacity-100"
             >
               <X size={12} />
@@ -995,19 +1109,19 @@ function SessionMiniCard({
   positions: number;
 }) {
   return (
-    <div className="mt-3 rounded-sm border border-bg-border bg-bg-panel p-2.5 font-mono text-[11px]">
-      <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
-        Account
+    <div className="mt-3 rounded-sm border border-bg-border bg-bg-panel p-2.5 font-mono text-[13px]">
+      <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wider text-text-muted">
+        账户
       </div>
-      <AccountRow label="Balance" value={formatCurrency(balance)} />
-      <AccountRow label="Equity" value={formatCurrency(equity)} />
-      <AccountRow label="Available" value={formatCurrency(available)} />
+      <AccountRow label="余额" value={formatCurrency(balance)} />
+      <AccountRow label="权益" value={formatCurrency(equity)} />
+      <AccountRow label="可用余额" value={formatCurrency(available)} />
       <AccountRow
-        label="Unrealized"
+        label="未实现盈亏"
         value={formatCurrency(unrealized)}
         tone={unrealized >= 0 ? 'up' : 'down'}
       />
-      <AccountRow label="Open positions" value={String(positions)} />
+      <AccountRow label="持仓数" value={String(positions)} />
     </div>
   );
 }
@@ -1039,21 +1153,21 @@ function MobileStatusStrip({
     return (
       <div className="flex flex-wrap items-center gap-2 rounded-sm border border-down/50 bg-down-dim px-2 py-2">
         <AlertTriangle size={14} className="shrink-0 text-down" />
-        <span className="min-w-0 flex-1 break-words font-mono text-[10px] leading-snug text-down/90">
+        <span className="min-w-0 flex-1 break-words font-mono text-[12px] leading-snug text-down/90">
           {error}
         </span>
         <div className="flex shrink-0 gap-1.5">
           <button
             onClick={onRetry}
-            className="rounded-sm border border-bg-border bg-bg-elevated px-2 py-1 text-[10px] font-semibold text-text-primary hover:bg-bg-hover"
+            className="rounded-sm border border-bg-border bg-bg-elevated px-2 py-1 text-[12px] font-semibold text-text-primary hover:bg-bg-hover"
           >
-            Retry
+            重试
           </button>
           <button
             onClick={onUseDemo}
-            className="rounded-sm border border-yellow-500/60 bg-yellow-500/10 px-2 py-1 text-[10px] font-semibold text-yellow-400 hover:bg-yellow-500/20"
+            className="rounded-sm border border-yellow-500/60 bg-yellow-500/10 px-2 py-1 text-[12px] font-semibold text-yellow-400 hover:bg-yellow-500/20"
           >
-            Use Demo
+            使用演示数据
           </button>
         </div>
       </div>
@@ -1070,41 +1184,41 @@ function MobileStatusStrip({
             aria-valuenow={progress?.pct ?? 0}
             aria-valuemin={0}
             aria-valuemax={100}
-            aria-label="Historical data loading progress"
+            aria-label="历史数据加载进度"
           >
             <div
               className="h-full rounded-full bg-accent transition-[width] duration-150"
               style={{ width: `${progress?.pct ?? 0}%` }}
             />
           </div>
-          <span className="font-mono text-[10px] font-bold text-accent">
+          <span className="font-mono text-[12px] font-bold text-accent">
             {progress ? `${progress.pct}%` : '0%'}
           </span>
         </div>
       ) : (
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10px] text-text-secondary">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[12px] text-text-secondary">
           {source === 'binance' && (
-            <span className="flex items-center gap-1 rounded-sm border border-up/50 bg-up-dim px-1.5 py-px text-[9px] font-semibold uppercase text-up">
+            <span className="flex items-center gap-1 rounded-sm border border-up/50 bg-up-dim px-1.5 py-px text-[11px] font-semibold uppercase text-up">
               <Radio size={9} /> Binance
             </span>
           )}
           {source === 'oanda' && (
-            <span className="flex items-center gap-1 rounded-sm border border-accent/60 bg-accent-dim px-1.5 py-px text-[9px] font-semibold uppercase text-accent">
+            <span className="flex items-center gap-1 rounded-sm border border-accent/60 bg-accent-dim px-1.5 py-px text-[11px] font-semibold uppercase text-accent">
               <Radio size={9} /> OANDA
             </span>
           )}
           {source === 'demo' && (
-            <span className="rounded-sm border border-yellow-500/50 bg-yellow-500/10 px-1.5 py-px text-[9px] font-semibold uppercase text-yellow-400">
-              Demo
+            <span className="rounded-sm border border-yellow-500/50 bg-yellow-500/10 px-1.5 py-px text-[11px] font-semibold uppercase text-yellow-400">
+              演示
             </span>
           )}
           <span>
-            <span className="text-text-muted">Candles:</span>{' '}
+            <span className="text-text-muted">K 线:</span>{' '}
             <span className="text-text-primary">{candleCount.toLocaleString()}</span>
           </span>
           {range && (
             <span>
-              <span className="text-text-muted">Range:</span>{' '}
+              <span className="text-text-muted">区间:</span>{' '}
               <span className="text-text-primary">
                 {formatShortDate(range.from)} → {formatShortDate(range.to)}
               </span>
@@ -1116,9 +1230,9 @@ function MobileStatusStrip({
       <button
         onClick={onStartReplay}
         disabled={!canStartReplay}
-        className="ml-auto flex shrink-0 items-center gap-1.5 rounded-sm border border-accent bg-accent px-3 py-2 text-[12px] font-bold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
+        className="ml-auto flex shrink-0 items-center gap-1.5 rounded-sm border border-accent bg-accent px-3 py-2 text-[14px] font-bold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
       >
-        <Play size={14} /> Start Replay
+        <Play size={14} /> 开始回放
       </button>
     </div>
   );
@@ -1129,8 +1243,8 @@ function LoadingOverlay({ progress }: { progress: { pct: number } | null }) {
   return (
     <div className="absolute inset-0 z-20 flex items-center justify-center bg-bg-base/80 backdrop-blur-[1px]">
       <div className="w-[min(320px,calc(100vw-24px))] rounded-md border border-bg-border bg-bg-panel p-4 shadow-neo">
-        <div className="mb-2 flex items-center justify-between font-mono text-[11px]">
-          <span className="text-text-secondary">Loading historical data</span>
+        <div className="mb-2 flex items-center justify-between font-mono text-[13px]">
+          <span className="text-text-secondary">正在加载历史数据</span>
           <span className="font-bold text-accent">{pct}%</span>
         </div>
         <div
@@ -1139,15 +1253,15 @@ function LoadingOverlay({ progress }: { progress: { pct: number } | null }) {
           aria-valuenow={pct}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-label="Historical data loading progress"
+          aria-label="历史数据加载进度"
         >
           <div
             className="h-full rounded-full bg-accent transition-[width] duration-150"
             style={{ width: `${pct}%` }}
           />
         </div>
-        <p className="mt-2 font-mono text-[10px] text-text-muted">
-          Fetching ~6 months of historical candles from the public market data service…
+        <p className="mt-2 font-mono text-[12px] text-text-muted">
+          正在从公共行情服务拉取约 6 个月的历史 K 线…
         </p>
       </div>
     </div>
@@ -1193,25 +1307,25 @@ function SessionDetails({
     replay.candles.length > 0 ? ((replay.currentReplayIndex + 1) / replay.candles.length) * 100 : 0;
 
   const rows: [string, string][] = [
-    ['Market', symbol],
-    ['Timeframe', timeframe],
-    ['Data source', source === 'binance' ? 'Binance (live)' : source === 'oanda' ? 'OANDA (live)' : source === 'demo' ? 'Demo (local)' : '—'],
-    ['Candles loaded', candleCount.toLocaleString()],
+    ['市场', symbol],
+    ['周期', timeframe],
+    ['数据源', source === 'binance' ? 'Binance 实时' : source === 'oanda' ? 'OANDA 实时' : source === 'demo' ? '演示（本地）' : '—'],
+    ['已加载 K 线', candleCount.toLocaleString()],
     [
-      'Covered period',
+      '覆盖区间',
       range
-        ? `${new Date(range.from * 1000).toLocaleDateString()} → ${new Date(range.to * 1000).toLocaleDateString()}`
+        ? `${formatShortDate(range.from)} → ${formatShortDate(range.to)}`
         : '—',
     ],
-    ['Replay mode', replay.mode],
-    ['Replay start', replay.replayStartIndex !== null ? `candle #${replay.replayStartIndex + 1}` : '—'],
-    ['Revealed', `${replay.currentReplayIndex + 1} / ${replay.candles.length} (${revealedPct.toFixed(1)}%)`],
-    ['Speed', `${replay.speed}x`],
+    ['回放状态', REPLAY_MODE_LABELS[replay.mode] ?? replay.mode],
+    ['Replay start', replay.replayStartIndex !== null ? `第 ${replay.replayStartIndex + 1} 根` : '—'],
+    ['已揭示', `${replay.currentReplayIndex + 1} / ${replay.candles.length} (${revealedPct.toFixed(1)}%)`],
+    ['速度', `${replay.speed}x`],
   ];
 
   return (
     <div className="flex flex-wrap gap-4 p-3">
-      <dl className="grid flex-1 grid-cols-1 gap-x-8 gap-y-1 font-mono text-[11px] sm:grid-cols-2 lg:grid-cols-3">
+      <dl className="grid flex-1 grid-cols-1 gap-x-8 gap-y-1 font-mono text-[13px] sm:grid-cols-2 lg:grid-cols-3">
         {rows.map(([k, v]) => (
           <div key={k} className="flex items-center justify-between gap-4 border-b border-bg-border/40 py-1">
             <dt className="text-text-muted">{k}</dt>
@@ -1221,8 +1335,8 @@ function SessionDetails({
       </dl>
       <div className="flex w-full flex-col gap-3 lg:w-auto">
         <div className="rounded-sm border border-bg-border bg-bg-elevated p-2.5">
-          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
-            Paper trading balance
+          <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wider text-text-muted">
+            模拟盘资金
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             {BALANCE_PRESETS.map((b) => (
@@ -1230,7 +1344,7 @@ function SessionDetails({
                 key={b}
                 onClick={() => onBalanceChange(b)}
                 aria-pressed={balanceSetting === b}
-                className={`rounded-sm border px-2 py-1 font-mono text-[10px] transition-colors ${
+                className={`rounded-sm border px-2 py-1 font-mono text-[12px] transition-colors ${
                   balanceSetting === b
                     ? 'border-accent bg-accent-dim text-accent'
                     : 'border-bg-border bg-bg-panel text-text-secondary hover:bg-bg-hover'
@@ -1247,64 +1361,64 @@ function SessionDetails({
                 const v = Number(e.target.value);
                 if (Number.isFinite(v) && v > 0) onBalanceChange(v);
               }}
-              aria-label="Custom starting balance"
-              className="h-7 w-24 rounded-sm border border-bg-border bg-bg-panel px-2 font-mono text-[11px] text-text-primary outline-none focus:border-accent"
+              aria-label="自定义初始资金"
+              className="h-7 w-24 rounded-sm border border-bg-border bg-bg-panel px-2 font-mono text-[13px] text-text-primary outline-none focus:border-accent"
             />
           </div>
-          <p className="mt-1.5 text-[10px] text-text-muted">
-            Applied when you start the next replay run.
+          <p className="mt-1.5 text-[12px] text-text-muted">
+            下次开始回放时生效。
           </p>
         </div>
         <div className="rounded-sm border border-bg-border bg-bg-elevated p-2.5">
-          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-text-muted">
+          <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wider text-text-muted">
             OANDA · XAUUSD Gold Spot
           </div>
           <input
             type="text"
             value={oandaToken}
             onChange={(e) => onOandaTokenChange(e.target.value)}
-            placeholder="Paste your OANDA v20 access token"
+            placeholder="粘贴 OANDA v20 访问令牌"
             autoComplete="off"
             spellCheck={false}
-            className="h-8 w-full rounded-sm border border-bg-border bg-bg-panel px-2 font-mono text-[11px] text-text-primary outline-none focus:border-accent"
+            className="h-8 w-full rounded-sm border border-bg-border bg-bg-panel px-2 font-mono text-[13px] text-text-primary outline-none focus:border-accent"
           />
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <span className="text-[10px] text-text-muted">Account</span>
+            <span className="text-[12px] text-text-muted">账户</span>
             <div className="flex gap-1">
               {(['practice', 'live'] as const).map((env) => (
                 <button
                   key={env}
                   onClick={() => onOandaEnvChange(env)}
                   aria-pressed={oandaEnv === env}
-                  className={`rounded-sm border px-2 py-1 font-mono text-[10px] transition-colors ${
+                  className={`rounded-sm border px-2 py-1 font-mono text-[12px] transition-colors ${
                     oandaEnv === env
                       ? 'border-accent bg-accent-dim text-accent'
                       : 'border-bg-border bg-bg-panel text-text-secondary hover:bg-bg-hover'
                   }`}
                 >
-                  {env === 'practice' ? 'Practice' : 'Live'}
+                  {env === 'practice' ? '模拟盘' : '实盘'}
                 </button>
               ))}
             </div>
           </div>
-          <p className="mt-1.5 text-[10px] leading-snug text-text-muted">
-            Token is stored only in your browser. Saving reloads the chart when XAU/USD is selected.
+          <p className="mt-1.5 text-[12px] leading-snug text-text-muted">
+            令牌仅保存在本地浏览器，保存后若当前选中 XAU/USD 会自动重载图表。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
             onClick={onToggleIndicators}
             aria-pressed={showIndicators}
-            className="rounded-sm border border-bg-border bg-bg-elevated px-3 py-1.5 text-[11px] font-semibold text-text-primary transition-colors hover:border-accent"
+            className="rounded-sm border border-bg-border bg-bg-elevated px-3 py-1.5 text-[13px] font-semibold text-text-primary transition-colors hover:border-accent"
           >
-            {showIndicators ? 'Hide SMA / EMA overlay' : 'Show SMA / EMA overlay'}
+            {showIndicators ? '隐藏 SMA/EMA 均线' : '显示 SMA/EMA 均线'}
           </button>
           <button
             onClick={onToggleVolume}
             aria-pressed={showVolume}
-            className="rounded-sm border border-bg-border bg-bg-elevated px-3 py-1.5 text-[11px] font-semibold text-text-primary transition-colors hover:border-accent"
+            className="rounded-sm border border-bg-border bg-bg-elevated px-3 py-1.5 text-[13px] font-semibold text-text-primary transition-colors hover:border-accent"
           >
-            {showVolume ? 'Hide Volume' : 'Show Volume'}
+            {showVolume ? '隐藏成交量' : '显示成交量'}
           </button>
         </div>
       </div>

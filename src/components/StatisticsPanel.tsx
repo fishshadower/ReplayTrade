@@ -23,8 +23,8 @@ export function StatisticsPanel({
     return (
       <div className="flex flex-col items-center justify-center gap-2 px-4 py-10 text-center">
         <BarChart3 size={22} className="text-bg-border" />
-        <p className="text-[12px] text-text-muted">No statistics yet</p>
-        <p className="text-[10px] text-text-muted">Close trades to build up your stats.</p>
+        <p className="text-[14px] text-text-muted">暂无统计数据</p>
+        <p className="text-[12px] text-text-muted">平仓后这里会积累你的战绩。</p>
       </div>
     );
   }
@@ -36,9 +36,9 @@ export function StatisticsPanel({
 
   const stat = (label: string, value: string, tone?: 'up' | 'down') => (
     <div className="flex flex-col gap-0.5 rounded-sm border border-bg-border bg-bg-panel px-2.5 py-2">
-      <span className="text-[10px] uppercase tracking-wider text-text-muted">{label}</span>
+      <span className="text-[12px] uppercase tracking-wider text-text-muted">{label}</span>
       <span
-        className={`font-mono text-[12px] font-bold ${
+        className={`font-mono text-[14px] font-bold ${
           tone === 'up' ? 'text-up' : tone === 'down' ? 'text-down' : 'text-text-primary'
         }`}
       >
@@ -51,19 +51,19 @@ export function StatisticsPanel({
     <div className="flex flex-col gap-3 p-3">
       {/* Summary */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {stat('Total trades', String(perf.totalTrades))}
-        {stat('Win rate', formatPct(perf.winRate))}
-        {stat('Net P&L', formatCurrency(netPnl), netPnl >= 0 ? 'up' : 'down')}
-        {stat('Return', formatPct(returnPct), returnPct >= 0 ? 'up' : 'down')}
+        {stat('总交易数', String(perf.totalTrades))}
+        {stat('胜率', formatPct(perf.winRate))}
+        {stat('净盈亏', formatCurrency(netPnl), netPnl >= 0 ? 'up' : 'down')}
+        {stat('收益率', formatPct(returnPct), returnPct >= 0 ? 'up' : 'down')}
       </div>
 
       {/* Equity curve */}
       <div className="rounded-sm border border-bg-border bg-bg-panel p-2.5">
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">
-            Equity curve
+          <span className="text-[12px] font-semibold uppercase tracking-wider text-text-muted">
+            权益曲线
           </span>
-          <span className="font-mono text-[11px] text-text-secondary">
+          <span className="font-mono text-[13px] text-text-secondary">
             {formatCurrency(currentEquity)}
           </span>
         </div>
@@ -71,18 +71,18 @@ export function StatisticsPanel({
       </div>
 
       {/* Detail grid */}
-      <div className="grid grid-cols-2 gap-2 font-mono text-[11px] sm:grid-cols-3">
-        {stat('Winning trades', String(perf.winningTrades), 'up')}
-        {stat('Losing trades', String(perf.losingTrades), 'down')}
-        {stat('Average win', formatCurrency(perf.avgWin), 'up')}
-        {stat('Average loss', formatCurrency(perf.avgLoss), 'down')}
-        {stat('Best trade', formatCurrency(perf.bestTrade), 'up')}
-        {stat('Worst trade', formatCurrency(perf.worstTrade), 'down')}
-        {stat('Profit factor', perf.profitFactor === Infinity ? '∞' : perf.profitFactor.toFixed(2))}
-        {stat('Max drawdown', formatPct(-perf.maxDrawdown), 'down')}
-        {stat('Avg R / trade', fmtR(perf.avgR), perf.avgR !== null ? (perf.avgR >= 0 ? 'up' : 'down') : undefined)}
-        {stat('Total R', fmtR(perf.totalR), perf.totalR !== null ? (perf.totalR >= 0 ? 'up' : 'down') : undefined)}
-        {stat('Realized P&L', formatCurrency(realizedPnl), realizedPnl >= 0 ? 'up' : 'down')}
+      <div className="grid grid-cols-2 gap-2 font-mono text-[13px] sm:grid-cols-3">
+        {stat('盈利笔数', String(perf.winningTrades), 'up')}
+        {stat('亏损笔数', String(perf.losingTrades), 'down')}
+        {stat('平均盈利', formatCurrency(perf.avgWin), 'up')}
+        {stat('平均亏损', formatCurrency(perf.avgLoss), 'down')}
+        {stat('最佳单笔', formatCurrency(perf.bestTrade), 'up')}
+        {stat('最差单笔', formatCurrency(perf.worstTrade), 'down')}
+        {stat('盈亏比 PF', perf.profitFactor === Infinity ? '∞' : perf.profitFactor.toFixed(2))}
+        {stat('最大回撤', formatPct(-perf.maxDrawdown), 'down')}
+        {stat('平均 R', fmtR(perf.avgR), perf.avgR !== null ? (perf.avgR >= 0 ? 'up' : 'down') : undefined)}
+        {stat('累计 R', fmtR(perf.totalR), perf.totalR !== null ? (perf.totalR >= 0 ? 'up' : 'down') : undefined)}
+        {stat('已实现盈亏', formatCurrency(realizedPnl), realizedPnl >= 0 ? 'up' : 'down')}
       </div>
     </div>
   );
@@ -91,8 +91,8 @@ export function StatisticsPanel({
 export function EquityChart({ series }: { series: number[] }) {
   if (series.length < 2) {
     return (
-      <div className="flex h-24 items-center justify-center font-mono text-[10px] text-text-muted">
-        Not enough data
+      <div className="flex h-24 items-center justify-center font-mono text-[12px] text-text-muted">
+        数据不足
       </div>
     );
   }
@@ -100,8 +100,8 @@ export function EquityChart({ series }: { series: number[] }) {
   const last = series[series.length - 1];
   if (first === undefined || last === undefined) {
     return (
-      <div className="flex h-24 items-center justify-center font-mono text-[10px] text-text-muted">
-        Not enough data
+      <div className="flex h-24 items-center justify-center font-mono text-[12px] text-text-muted">
+        数据不足
       </div>
     );
   }
@@ -130,7 +130,7 @@ export function EquityChart({ series }: { series: number[] }) {
       preserveAspectRatio="none"
       className="h-24 w-full"
       role="img"
-      aria-label="Equity curve"
+      aria-label="权益曲线"
     >
       <defs>
         <linearGradient id="eqgrad" x1="0" y1="0" x2="0" y2="1">

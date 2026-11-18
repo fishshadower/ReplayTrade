@@ -13,13 +13,13 @@ interface DrawingToolbarProps {
 }
 
 const DRAW_TOOLS: { tool: DrawingTool; icon: LucideIcon; label: string }[] = [
-  { tool: 'select', icon: MousePointer2, label: 'Select / move (V)' },
-  { tool: 'trendLine', icon: Slash, label: 'Trend line' },
-  { tool: 'ray', icon: TrendingUp, label: 'Ray' },
-  { tool: 'horzLine', icon: Minus, label: 'Horizontal line' },
-  { tool: 'vertLine', icon: SeparatorVertical, label: 'Vertical line' },
-  { tool: 'rectangle', icon: Square, label: 'Rectangle' },
-  { tool: 'fibRetracement', icon: Percent, label: 'Fibonacci retracement' },
+  { tool: 'select', icon: MousePointer2, label: '选择 / 移动 (V)' },
+  { tool: 'trendLine', icon: Slash, label: '趋势线' },
+  { tool: 'ray', icon: TrendingUp, label: '射线' },
+  { tool: 'horzLine', icon: Minus, label: '水平线' },
+  { tool: 'vertLine', icon: SeparatorVertical, label: '垂直线' },
+  { tool: 'rectangle', icon: Square, label: '矩形' },
+  { tool: 'fibRetracement', icon: Percent, label: '斐波那契回撤' },
 ];
 
 function ToolBtn({
@@ -77,7 +77,7 @@ export function DrawingToolbar({
       className="flex flex-col items-center gap-0.5 rounded-md border border-bg-border bg-bg-panel/95 p-1 shadow-neo backdrop-blur-sm"
       onPointerDown={(e) => e.stopPropagation()}
       role="toolbar"
-      aria-label="Drawing tools"
+      aria-label="绘图工具"
     >
       {DRAW_TOOLS.map(({ tool: t, icon: Icon, label }) => (
         <ToolBtn key={t} title={label} active={tool === t} onClick={() => onToolChange(t)}>
@@ -88,17 +88,17 @@ export function DrawingToolbar({
       <span className="my-1 h-px w-5 bg-bg-border" aria-hidden="true" />
 
       <ToolBtn
-        title={hasSelection ? 'Delete selected drawing (Del)' : 'Delete selected drawing (no selection)'}
+        title={hasSelection ? '删除选中图形 (Del)' : '删除选中图形（未选中）'}
         danger
         disabled={!hasSelection}
         onClick={onDeleteSelected}
       >
         <Eraser size={16} />
       </ToolBtn>
-      <ToolBtn title="Undo last drawing (Ctrl+Z)" disabled={!hasDrawings} onClick={onUndo}>
+      <ToolBtn title="撤销上一步绘图 (Ctrl+Z)" disabled={!hasDrawings} onClick={onUndo}>
         <Undo2 size={16} />
       </ToolBtn>
-      <ToolBtn title="Clear all drawings" danger disabled={!hasDrawings} onClick={onClearAll}>
+      <ToolBtn title="清空全部图形" danger disabled={!hasDrawings} onClick={onClearAll}>
         <Trash2 size={16} />
       </ToolBtn>
     </div>

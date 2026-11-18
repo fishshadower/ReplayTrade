@@ -53,82 +53,82 @@ export function ReplayToolbar({
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10px] text-text-secondary pt-0.5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[12px] text-text-secondary pt-0.5">
         <span className="flex items-center gap-1 rounded-sm border border-accent/60 bg-accent-dim px-1.5 py-0.5 font-semibold uppercase tracking-wider text-accent glow-accent">
-          <Zap size={10} className={state.isPlaying ? 'animate-pulse text-amber-400' : ''} /> Replay Mode
+          <Zap size={10} className={state.isPlaying ? 'animate-pulse text-amber-400' : ''} /> 回放模式
         </span>
         <span>
-          Current:{' '}
+          当前:{' '}
           <span className="text-text-primary font-semibold">
             {current ? formatCandleDate(current.time, timeframe) : '—'}
           </span>
         </span>
         <span>
-          Candle:{' '}
+          K 线:{' '}
           <span className="text-text-primary">
             {total > 0 ? state.currentReplayIndex + 1 : 0} / {total.toLocaleString()}
           </span>
         </span>
         <span>
-          Revealed: <span className="font-bold text-accent">{revealedPct.toFixed(1)}%</span>
+          已揭示: <span className="font-bold text-accent">{revealedPct.toFixed(1)}%</span>
         </span>
         <span>
-          Remaining: <span className="text-text-primary">{remaining.toLocaleString()}</span>
+          剩余: <span className="text-text-primary">{remaining.toLocaleString()}</span>
         </span>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
-        <ToolButton label="Exit replay" onClick={exitReplay} tone="danger" title="Exit replay (Esc)">
+        <ToolButton label="退出回放" onClick={exitReplay} tone="danger" title="退出回放 (Esc)">
           <X size={15} />
         </ToolButton>
-        <ToolButton label="Reset replay" onClick={resetReplay} disabled={atReplayStart}>
+        <ToolButton label="重置回放" onClick={resetReplay} disabled={atReplayStart}>
           <RotateCcw size={15} />
         </ToolButton>
         <div className="mx-0.5 h-6 w-px bg-bg-border" aria-hidden="true" />
-        <ToolButton label="Skip 10 candles backward" onClick={() => skipBackward(10)} disabled={atStart}>
+        <ToolButton label="后退 10 根" onClick={() => skipBackward(10)} disabled={atStart}>
           <Rewind size={15} />
         </ToolButton>
-        <ToolButton label="Skip 5 candles backward" onClick={() => skipBackward(5)} disabled={atStart}>
+        <ToolButton label="后退 5 根" onClick={() => skipBackward(5)} disabled={atStart}>
           <ChevronLeft size={15} />
         </ToolButton>
-        <ToolButton label="Previous candle" onClick={previousCandle} disabled={atStart}>
+        <ToolButton label="上一根" onClick={previousCandle} disabled={atStart}>
           <SkipBack size={15} />
         </ToolButton>
-        <ToolButton label={state.isPlaying ? 'Pause' : 'Play'} onClick={togglePlay} disabled={atEnd} accent>
+        <ToolButton label={state.isPlaying ? '暂停' : '播放'} onClick={togglePlay} disabled={atEnd} accent>
           {state.isPlaying ? <Pause size={15} /> : <Play size={15} />}
         </ToolButton>
-        <ToolButton label="Next candle" onClick={nextCandle} disabled={atEnd}>
+        <ToolButton label="下一根" onClick={nextCandle} disabled={atEnd}>
           <SkipForward size={15} />
         </ToolButton>
         <div className="mx-0.5 h-6 w-px bg-bg-border" aria-hidden="true" />
-        <ToolButton label="Skip 5 candles forward" onClick={() => skipForward(5)} disabled={atEnd}>
+        <ToolButton label="前进 5 根" onClick={() => skipForward(5)} disabled={atEnd}>
           <ChevronsRight size={15} />
         </ToolButton>
-        <ToolButton label="Skip 10 candles forward" onClick={() => skipForward(10)} disabled={atEnd}>
+        <ToolButton label="前进 10 根" onClick={() => skipForward(10)} disabled={atEnd}>
           <FastForward size={15} />
         </ToolButton>
         <div className="mx-0.5 h-6 w-px bg-bg-border" aria-hidden="true" />
-        <ToolButton label="Go to latest revealed candle" onClick={jumpToLive}>
+        <ToolButton label="跳到最新 K 线" onClick={jumpToLive}>
           <ChevronsRight size={15} />
         </ToolButton>
         <button
           onClick={onToggleAutoFollow}
           aria-pressed={autoFollow}
-          className={`rounded-sm border px-2 py-1.5 text-[10px] font-semibold transition-colors ${
+          className={`rounded-sm border px-2 py-1.5 text-[12px] font-semibold transition-colors ${
             autoFollow
               ? 'border-accent bg-accent-dim text-accent'
               : 'border-bg-border bg-bg-elevated text-text-secondary hover:bg-bg-hover'
           }`}
         >
-          Auto Follow
+          自动跟随
         </button>
-        <label className="ml-auto flex items-center gap-1.5 font-mono text-[10px] text-text-secondary">
-          Speed
+        <label className="ml-auto flex items-center gap-1.5 font-mono text-[12px] text-text-secondary">
+          速度
           <select
             value={state.speed}
             onChange={(e) => setSpeed(Number(e.target.value))}
-            className="h-7 cursor-pointer rounded-sm border border-bg-border bg-bg-elevated px-1.5 font-mono text-[11px] font-semibold text-text-primary outline-none focus:border-accent"
-            aria-label="Replay speed"
+            className="h-7 cursor-pointer rounded-sm border border-bg-border bg-bg-elevated px-1.5 font-mono text-[13px] font-semibold text-text-primary outline-none focus:border-accent"
+            aria-label="回放速度"
           >
             {REPLAY_SPEEDS.map((s) => (
               <option key={s} value={s}>

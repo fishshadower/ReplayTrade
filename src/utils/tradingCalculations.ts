@@ -40,25 +40,16 @@ export function formatVolume(value: number): string {
 
 export function formatTime(ts: number, timeframe: string): string {
   const d = new Date(ts * 1000);
-  if (timeframe === '1d') {
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  }
-  return d.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const p = (n: number) => String(n).padStart(2, '0');
+  const ymd = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  if (timeframe === '1d') return ymd;
+  return `${ymd} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 export function formatDateTime(ts: number): string {
-  return new Date(ts * 1000).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const d = new Date(ts * 1000);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 export function computePnl(direction: Direction, entry: number, current: number, quantity: number): number {
@@ -91,35 +82,35 @@ export function validateOrder(
   availableBalance: number,
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
-  if (!(order.quantity > 0)) errors.push('Quantity must be greater than zero.');
-  if (!(order.entryPrice > 0)) errors.push('Entry price must be positive.');
+  if (!(order.quantity > 0)) errors.push('数量必须大于 0。');
+  if (!(order.entryPrice > 0)) errors.push('开仓价必须大于 0。');
 
   if (order.direction === 'long') {
     if (order.stopLoss !== null && order.stopLoss !== undefined && order.stopLoss >= order.entryPrice) {
-      errors.push('Stop-loss must be below the entry price for a long.');
+      errors.push('多单的止损价必须低于开仓价。');
     }
     if (
       order.takeProfit !== null &&
       order.takeProfit !== undefined &&
       order.takeProfit <= order.entryPrice
     ) {
-      errors.push('Take-profit must be above the entry price for a long.');
+      errors.push('多单的止盈价必须高于开仓价。');
     }
   } else {
     if (order.stopLoss !== null && order.stopLoss !== undefined && order.stopLoss <= order.entryPrice) {
-      errors.push('Stop-loss must be above the entry price for a short.');
+      errors.push('空单的止损价必须高于开仓价。');
     }
     if (
       order.takeProfit !== null &&
       order.takeProfit !== undefined &&
       order.takeProfit >= order.entryPrice
     ) {
-      errors.push('Take-profit must be below the entry price for a short.');
+      errors.push('空单的止盈价必须低于开仓价。');
     }
   }
 
   if (order.quantity > 0 && order.entryPrice > 0 && order.quantity * order.entryPrice > availableBalance) {
-    errors.push('Position value exceeds available balance.');
+    errors.push('仓位价值超过可用余额。');
   }
   return { valid: errors.length === 0, errors };
 }

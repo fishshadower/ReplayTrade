@@ -108,7 +108,7 @@ export function useMarketData(): UseMarketDataResult {
               });
         if (controller.signal.aborted) return;
         if (result.length === 0) {
-          setError('The market data service returned no candles for this range.');
+          setError('行情服务在该区间未返回任何 K 线。');
           setCandles([]);
           setSource(null);
           return;
@@ -116,7 +116,7 @@ export function useMarketData(): UseMarketDataResult {
         const first = result[0];
         const last = result[result.length - 1];
         if (!first || !last) {
-          setError('The market data service returned no candles for this range.');
+          setError('行情服务在该区间未返回任何 K 线。');
           setCandles([]);
           setSource(null);
           return;

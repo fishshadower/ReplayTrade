@@ -108,7 +108,7 @@ export const DEFAULT_STYLE: DrawingStyle = {
   fillColor: '#4f8cff',
   fillOpacity: 0.15,
   textColor: '#e6ebf5',
-  fontSize: 11,
+  fontSize: 13,
 };
 
 export const STYLE_PRESETS: Record<PresetId, DrawingStyle> = {
@@ -162,26 +162,26 @@ export const DRAWING_COLORS = PALETTE;
 export const DEFAULT_FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.764, 1];
 
 export const TOOL_LABELS: Record<ToolId, string> = {
-  select: 'Select / Move',
-  delete: 'Delete drawing',
-  trendLine: 'Trend Line',
-  ray: 'Ray',
-  extendedLine: 'Extended Line',
-  horizontalLine: 'Horizontal Line',
-  verticalLine: 'Vertical Line',
-  fibRetracement: 'Fibonacci Retracement',
-  rectangle: 'Rectangle',
-  circle: 'Circle',
-  ellipse: 'Ellipse',
-  triangle: 'Triangle',
-  polygon: 'Polygon',
-  path: 'Freehand Path',
-  arrow: 'Arrow',
-  text: 'Text',
-  longPosition: 'Long Position',
-  shortPosition: 'Short Position',
-  riskReward: 'Risk / Reward',
-  measure: 'Measure',
+  select: '选择 / 移动',
+  delete: '删除图形',
+  trendLine: '趋势线',
+  ray: '射线',
+  extendedLine: '延长线',
+  horizontalLine: '水平线',
+  verticalLine: '垂直线',
+  fibRetracement: '斐波那契回撤',
+  rectangle: '矩形',
+  circle: '圆',
+  ellipse: '椭圆',
+  triangle: '三角形',
+  polygon: '多边形',
+  path: '自由画笔',
+  arrow: '箭头',
+  text: '文本',
+  longPosition: '多头仓位',
+  shortPosition: '空头仓位',
+  riskReward: '风险 / 收益比',
+  measure: '测量',
 };
 
 export const TOOL_SHORTCUTS: Partial<Record<ToolId, string>> = {
@@ -233,9 +233,9 @@ export const MIN_POINTS: Record<DrawingType, number> = {
   path: 2,
   arrow: 2,
   text: 1,
-  longPosition: 3,
-  shortPosition: 3,
-  riskReward: 3,
+  longPosition: 1,
+  shortPosition: 1,
+  riskReward: 1,
   measure: 2,
 };
 

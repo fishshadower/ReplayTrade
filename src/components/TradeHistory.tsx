@@ -9,10 +9,10 @@ interface TradeHistoryProps {
 }
 
 const REASON_LABEL: Record<ClosedTrade['exitReason'], string> = {
-  manual: 'Manual',
-  'stop-loss': 'Stop-loss',
-  'take-profit': 'Take-profit',
-  'replay-ended': 'Replay ended',
+  manual: '手动',
+  'stop-loss': '止损',
+  'take-profit': '止盈',
+  'replay-ended': '回放结束',
 };
 
 export function TradeHistory({ history, decimals, maxRows = 50 }: TradeHistoryProps) {
@@ -20,7 +20,7 @@ export function TradeHistory({ history, decimals, maxRows = 50 }: TradeHistoryPr
     return (
       <div className="flex flex-col items-center justify-center gap-2 px-4 py-10 text-center">
         <History size={22} className="text-bg-border" />
-        <p className="text-[12px] text-text-muted">No closed trades yet</p>
+        <p className="text-[14px] text-text-muted">暂无历史成交</p>
       </div>
     );
   }
@@ -29,20 +29,21 @@ export function TradeHistory({ history, decimals, maxRows = 50 }: TradeHistoryPr
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[640px] border-collapse font-mono text-[11px]">
+      <table className="w-full min-w-[760px] border-collapse font-mono text-[13px]">
         <thead>
-          <tr className="border-b border-bg-border text-left text-[10px] uppercase tracking-wider text-text-muted">
+          <tr className="border-b border-bg-border text-left text-[12px] uppercase tracking-wider text-text-muted">
             <Th>#</Th>
-            <Th>Symbol</Th>
-            <Th>Dir</Th>
-            <Th className="text-right">Entry</Th>
-            <Th className="text-right">Exit</Th>
-            <Th className="text-right">Qty</Th>
-            <Th className="text-right">P&L</Th>
-            <Th className="text-right">Ret</Th>
+            <Th>代码</Th>
+            <Th>方向</Th>
+            <Th className="text-right">开仓</Th>
+            <Th className="text-right">平仓</Th>
+            <Th className="text-right">数量</Th>
+            <Th className="text-right">盈亏</Th>
+            <Th className="text-right">收益率</Th>
             <Th className="text-right">R</Th>
-            <Th>Reason</Th>
-            <Th>Closed</Th>
+            <Th>原因</Th>
+            <Th>开仓时间</Th>
+            <Th>平仓时间</Th>
           </tr>
         </thead>
         <tbody>
@@ -54,7 +55,7 @@ export function TradeHistory({ history, decimals, maxRows = 50 }: TradeHistoryPr
                 <Td className="text-text-primary">{t.symbol}</Td>
                 <Td>
                   <span
-                    className={`rounded-sm px-1 py-px text-[10px] font-bold ${
+                    className={`rounded-sm px-1 py-px text-[12px] font-bold ${
                       t.direction === 'long' ? 'bg-up-dim text-up' : 'bg-down-dim text-down'
                     }`}
                   >
@@ -75,10 +76,11 @@ export function TradeHistory({ history, decimals, maxRows = 50 }: TradeHistoryPr
                   {t.rMultiple !== null ? `${t.rMultiple >= 0 ? '+' : ''}${t.rMultiple.toFixed(2)}R` : '—'}
                 </Td>
                 <Td className="text-text-secondary">
-                  <span className="rounded-sm border border-bg-border px-1 py-px text-[10px]">
+                  <span className="rounded-sm border border-bg-border px-1 py-px text-[12px]">
                     {REASON_LABEL[t.exitReason]}
                   </span>
                 </Td>
+                <Td className="text-text-muted">{formatDateTime(t.openedAt)}</Td>
                 <Td className="text-text-muted">{formatDateTime(t.closedAt)}</Td>
               </tr>
             );

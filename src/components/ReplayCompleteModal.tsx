@@ -40,12 +40,12 @@ export function ReplayCompleteModal({
       <div className="my-6 w-full max-w-md rounded-md border border-bg-border bg-bg-panel shadow-neo animate-fade-in">
         <div className="flex items-center justify-between border-b border-bg-border px-4 py-3">
           <div>
-            <h2 id="replay-complete-title" className="text-[14px] font-bold text-text-primary">
-              Replay Complete
+            <h2 id="replay-complete-title" className="text-[15px] font-bold text-text-primary">
+              回放完成
             </h2>
-            <p className="text-[10px] text-text-muted">End of the revealed candle history.</p>
+            <p className="text-[12px] text-text-muted">已揭示的 K 线全部走完。</p>
           </div>
-          <button onClick={onClose} aria-label="Close dialog" className="text-text-muted hover:text-text-primary">
+          <button onClick={onClose} aria-label="关闭弹窗" className="text-text-muted hover:text-text-primary">
             <X size={16} />
           </button>
         </div>
@@ -53,31 +53,31 @@ export function ReplayCompleteModal({
         <div className="px-4 py-4">
           <div className="flex items-center justify-between rounded-sm bg-bg-elevated px-4 py-3">
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-text-muted">Total P&L</div>
+              <div className="text-[12px] uppercase tracking-wider text-text-muted">总盈亏</div>
               <div className={`font-mono text-[22px] font-bold ${totalPnl >= 0 ? 'text-up' : 'text-down'}`}>
                 {formatCurrency(totalPnl)}
               </div>
-              <div className={`font-mono text-[11px] ${totalPnl >= 0 ? 'text-up' : 'text-down'}`}>
-                {formatPct(returnPct)} return
+              <div className={`font-mono text-[13px] ${totalPnl >= 0 ? 'text-up' : 'text-down'}`}>
+                {formatPct(returnPct)} 收益率
               </div>
             </div>
-            <div className="text-right font-mono text-[12px] text-text-secondary">
+            <div className="text-right font-mono text-[14px] text-text-secondary">
               <div>
-                Final balance: <span className="text-text-primary">{formatCurrency(finalBalance)}</span>
+                期末余额：<span className="text-text-primary">{formatCurrency(finalBalance)}</span>
               </div>
               <div>
-                Starting: <span className="text-text-primary">{formatCurrency(startingBalance)}</span>
+                期初：<span className="text-text-primary">{formatCurrency(startingBalance)}</span>
               </div>
             </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-3 gap-2 font-mono text-[11px]">
-            <MiniStat label="Trades" value={String(trades)} />
-            <MiniStat label="Win rate" value={formatPct(perf.winRate)} />
-            <MiniStat label="Profit factor" value={perf.profitFactor === Infinity ? '∞' : perf.profitFactor.toFixed(2)} />
-            <MiniStat label="Avg win" value={formatCurrency(perf.avgWin)} />
-            <MiniStat label="Avg loss" value={formatCurrency(perf.avgLoss)} />
-            <MiniStat label="Max drawdown" value={formatPct(-perf.maxDrawdown)} />
+          <div className="mt-3 grid grid-cols-3 gap-2 font-mono text-[13px]">
+            <MiniStat label="交易笔数" value={String(trades)} />
+            <MiniStat label="胜率" value={formatPct(perf.winRate)} />
+            <MiniStat label="盈亏比 PF" value={perf.profitFactor === Infinity ? '∞' : perf.profitFactor.toFixed(2)} />
+            <MiniStat label="平均盈利" value={formatCurrency(perf.avgWin)} />
+            <MiniStat label="平均亏损" value={formatCurrency(perf.avgLoss)} />
+            <MiniStat label="最大回撤" value={formatPct(-perf.maxDrawdown)} />
           </div>
         </div>
 
@@ -85,22 +85,22 @@ export function ReplayCompleteModal({
           <button
             onClick={onReplayAgain}
             autoFocus
-            className="rounded-sm bg-accent px-3 py-2 text-[12px] font-bold text-white transition-colors hover:bg-accent-hover"
+            className="rounded-sm bg-accent px-3 py-2 text-[14px] font-bold text-white transition-colors hover:bg-accent-hover"
           >
-            Replay Again
+            再来一次
           </button>
           <div className="flex gap-2">
             <button
               onClick={onChooseAnotherStart}
-              className="flex-1 rounded-sm border border-bg-border px-3 py-2 text-[12px] font-semibold text-text-secondary hover:bg-bg-hover"
+              className="flex-1 rounded-sm border border-bg-border px-3 py-2 text-[14px] font-semibold text-text-secondary hover:bg-bg-hover"
             >
-              Choose Another Start
+              换个起点
             </button>
             <button
               onClick={onCreateNewSession}
-              className="flex-1 rounded-sm border border-bg-border px-3 py-2 text-[12px] font-semibold text-text-secondary hover:bg-bg-hover"
+              className="flex-1 rounded-sm border border-bg-border px-3 py-2 text-[14px] font-semibold text-text-secondary hover:bg-bg-hover"
             >
-              Create New Session
+              新建会话
             </button>
           </div>
         </div>
@@ -112,8 +112,8 @@ export function ReplayCompleteModal({
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-sm border border-bg-border bg-bg-elevated px-2 py-1.5 text-center">
-      <div className="text-[9px] uppercase tracking-wider text-text-muted">{label}</div>
-      <div className="text-[12px] font-bold text-text-primary">{value}</div>
+      <div className="text-[11px] uppercase tracking-wider text-text-muted">{label}</div>
+      <div className="text-[14px] font-bold text-text-primary">{value}</div>
     </div>
   );
 }

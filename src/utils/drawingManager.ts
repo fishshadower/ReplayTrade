@@ -648,7 +648,7 @@ export class DrawingManager implements ISeriesPrimitive<Time> {
     align: 'left' | 'right' | 'center' = 'left',
   ): void {
     ctx.save();
-    ctx.font = '10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+    ctx.font = "10px 'Inter Variable', 'Inter', -apple-system, 'PingFang SC', sans-serif";
     const tw = ctx.measureText(text).width;
     const pad = 3;
     const bw = tw + pad * 2;

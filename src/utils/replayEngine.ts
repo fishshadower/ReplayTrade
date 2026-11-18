@@ -3,14 +3,18 @@ import type { ReplayMode, ReplayState } from '../types/replay';
 
 export const VISIBLE_HISTORY_COUNT = 200;
 
-export const REPLAY_SPEEDS = [0.25, 0.5, 1, 2, 5, 10] as const;
+export const REPLAY_SPEEDS = [0.1, 0.2, 0.25, 0.3, 0.5, 1, 3, 5, 7, 10] as const;
 
 export const REPLAY_INTERVALS_MS: Record<number, number> = {
+  0.1: 5000,
+  0.2: 2500,
   0.25: 2000,
+  0.3: 1650,
   0.5: 1000,
   1: 500,
-  2: 250,
+  3: 165,
   5: 100,
+  7: 70,
   10: 50,
 };
 

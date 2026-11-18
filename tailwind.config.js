@@ -26,12 +26,21 @@ export default {
         },
         text: {
           primary: '#e6ebf5',
-          secondary: '#9aa6bd',
-          muted: '#5b6a80',
+          secondary: '#b0bbd0',
+          muted: '#7d8ba3',
         },
       },
       fontFamily: {
-        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
+        mono: [
+          'Inter Variable',
+          'Inter',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'PingFang SC',
+          'Helvetica Neue',
+          'Arial',
+          'sans-serif',
+        ],
       },
       boxShadow: {
         'neo': '3px 3px 0 0 rgba(0,0,0,0.55)',

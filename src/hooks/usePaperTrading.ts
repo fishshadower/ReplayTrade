@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Candle } from '../types/market';
 import type { ClosedTrade, OrderDraft, Position, TradingState } from '../types/trading';
+import type { ReplaySessionRecord } from '../utils/sessionStore';
 import {
   availableBalance,
   closePosition,
@@ -15,6 +16,8 @@ function nextId(prefix: string): string {
   idCounter += 1;
   return `${prefix}-${Date.now()}-${idCounter}`;
 }
+
+let sessionSeq = 0;
 
 function freshState(startingBalance: number): TradingState {
   return {
@@ -46,6 +49,8 @@ export function usePaperTrading(symbol: string) {
   const priceRef = useRef<number>(0);
   const symbolRef = useRef(symbol);
   symbolRef.current = symbol;
+  const archivedRef = useRef(false);
+  const startedAtRef = useRef<number>(Date.now());
 
   const sync = useCallback(() => {
     setState({ ...storeRef.current });
@@ -69,10 +74,39 @@ export function usePaperTrading(symbol: string) {
     (startingBalance: number) => {
       storeRef.current = freshState(startingBalance);
       priceRef.current = 0;
+      archivedRef.current = false;
+      startedAtRef.current = Date.now();
       setCurrentPrice(0);
       sync();
     },
     [sync],
+  );
+
+  /**
+   * 归档当前会话为一批回放记录（有成交且未归档过才产生）。
+   * 在开始新回放 / 回放完成 / 退出回放时调用；同批只归档一次。
+   */
+  const archiveSession = useCallback(
+    (meta: { symbol: string; timeframe: string; replayStartTime: number | null }): ReplaySessionRecord | null => {
+      const st = storeRef.current;
+      if (archivedRef.current || st.history.length === 0) return null;
+      archivedRef.current = true;
+      sessionSeq += 1;
+      const totalPnl = st.history.reduce((s, t) => s + t.pnl, 0);
+      return {
+        id: `session-${Date.now()}-${sessionSeq}`,
+        symbol: meta.symbol,
+        timeframe: meta.timeframe,
+        startedAt: startedAtRef.current,
+        endedAt: Date.now(),
+        replayStartTime: meta.replayStartTime,
+        startingBalance: st.startingBalance,
+        finalBalance: st.balance,
+        totalPnl,
+        trades: st.history,
+      };
+    },
+    [],
   );
 
   const openPosition = useCallback(
@@ -191,6 +225,43 @@ export function usePaperTrading(symbol: string) {
     [sync],
   );
 
+  /** 手动拖动修改持仓的止损/止盈，安全侧钳制后写回（多单 SL ≤ min(开仓,现价) 等）。 */
+  const updatePositionLevels = useCallback(
+    (id: string, levels: { stopLoss?: number | null; takeProfit?: number | null }) => {
+      const st = storeRef.current;
+      const p = st.positions.find((x) => x.id === id);
+      if (!p) return;
+      let stopLoss = levels.stopLoss;
+      let takeProfit = levels.takeProfit;
+      const mark = priceRef.current;
+      if (stopLoss !== undefined && stopLoss !== null && stopLoss > 0) {
+        if (p.direction === 'long') {
+          stopLoss = Math.min(stopLoss, p.entryPrice, mark > 0 ? mark : stopLoss);
+        } else {
+          stopLoss = Math.max(stopLoss, p.entryPrice, mark > 0 ? mark : stopLoss);
+        }
+      }
+      if (takeProfit !== undefined && takeProfit !== null && takeProfit > 0) {
+        if (p.direction === 'long') takeProfit = Math.max(takeProfit, p.entryPrice);
+        else takeProfit = Math.min(takeProfit, p.entryPrice);
+      }
+      storeRef.current = {
+        ...st,
+        positions: st.positions.map((x) =>
+          x.id === id
+            ? {
+                ...x,
+                stopLoss: stopLoss === undefined ? x.stopLoss : stopLoss,
+                takeProfit: takeProfit === undefined ? x.takeProfit : takeProfit,
+              }
+            : x,
+        ),
+      };
+      sync();
+    },
+    [sync],
+  );
+
   /**
    * Advance the market by one candle. Evaluates SL/TP for open positions and
    * returns any trades closed by the market on this candle.
@@ -264,6 +335,8 @@ export function usePaperTrading(symbol: string) {
     closeHalf,
     closeAllAtPrice,
     moveStopToEntry,
+    updatePositionLevels,
+    archiveSession,
     processTick,
     updatePrice,
     reset,
