@@ -1291,7 +1291,7 @@ export function TradingChart({
       {/* Legend overlay */}
       <div
         className={`pointer-events-none absolute left-2 z-10 font-mono text-[13px] leading-relaxed text-text-secondary ${
-          replayActive ? 'top-2 lg:top-[140px]' : 'top-2'
+          replayActive ? 'top-2 lg:top-[96px]' : 'top-2'
         }`}
       >
         <div className="flex items-center gap-2">

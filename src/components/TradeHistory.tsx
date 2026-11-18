@@ -48,7 +48,7 @@ export function TradeHistory({ history, decimals, maxRows = 50, onNoteEdit, onJu
             <Th>原因</Th>
             <Th>开仓时间</Th>
             <Th>平仓时间</Th>
-            <Th>余额</Th>
+            <Th className="text-right">余额</Th>
             <Th>备注</Th>
           </tr>
         </thead>
