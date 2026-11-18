@@ -48,7 +48,7 @@ export function TradeHistory({ history, decimals, maxRows = 50, onNoteEdit, onJu
             <Th>原因</Th>
             <Th>开仓时间</Th>
             <Th>平仓时间</Th>
-            <Th className="text-right">余额</Th>
+            <Th>余额</Th>
             <Th>备注</Th>
           </tr>
         </thead>
@@ -114,7 +114,7 @@ export function TradeHistory({ history, decimals, maxRows = 50, onNoteEdit, onJu
                     formatDateTime(t.closedAt)
                   )}
                 </Td>
-                <Td className="text-right text-text-secondary">
+                <Td className="whitespace-nowrap pr-6 text-text-secondary">
                   {t.balanceAfter !== undefined ? formatCurrency(t.balanceAfter) : '—'}
                 </Td>
                 <Td>
@@ -124,7 +124,7 @@ export function TradeHistory({ history, decimals, maxRows = 50, onNoteEdit, onJu
                       value={t.note ?? ''}
                       onChange={(e) => onNoteEdit(t.id, e.target.value)}
                       placeholder="备注…"
-                      className="h-7 w-[140px] rounded-sm border border-bg-border bg-bg-elevated px-1.5 text-[12px] text-text-primary outline-none focus:border-accent"
+                      className="h-7 w-[200px] rounded-sm border border-bg-border bg-bg-elevated px-1.5 text-[12px] text-text-primary outline-none focus:border-accent"
                     />
                   ) : (
                     <span className="text-[12px] italic text-accent">{t.note ?? ''}</span>

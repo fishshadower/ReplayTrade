@@ -495,15 +495,20 @@ export function TradingChart({
     if (!focusTimeSignal || focusTimeSignal <= 0) return;
     const idx = nearestIndexByTime(candles, focusTimeSignal);
     if (idx < 0) return;
+    // 回放模式 series 只装已揭示切片：全量索引需换算成窗口内 logical 索引；
+    // 目标早于揭示窗口则不跳（回放不看更早之外的未装载数据）
+    const start = replayActive ? Math.max(0, visibleStartIndex) : 0;
+    const logicalIdx = idx - start;
+    if (logicalIdx < 0) return;
     const ts = chartRef.current?.timeScale();
     if (!ts) return;
     const span = 160;
     ts.setVisibleLogicalRange({
-      from: Math.max(0, idx - Math.floor(span * 0.5)),
-      to: idx + Math.ceil(span * 0.5),
+      from: Math.max(0, logicalIdx - Math.floor(span * 0.5)),
+      to: logicalIdx + Math.ceil(span * 0.5),
     });
     const cs = candleSeriesRef.current;
-    if (cs) fitPriceScaleToCandles(cs.priceScale(), candles.slice(Math.max(0, idx - span), idx + 40));
+    if (cs) fitPriceScaleToCandles(cs.priceScale(), candles.slice(Math.max(start, idx - span), idx + 40));
     atRightEdgeRef.current = false;
     setAwayFromEdge(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
