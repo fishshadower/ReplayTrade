@@ -231,20 +231,6 @@ export function Header({
           </div>
         )}
 
-        <div className="text-right font-mono leading-tight">
-          <div className="text-[11px] uppercase tracking-wider text-text-muted">余额</div>
-          <div className="text-[15px] font-bold text-text-primary">{formatCurrency(balance)}</div>
-        </div>
-
-        <div className="text-right font-mono leading-tight">
-          <div className="text-[11px] uppercase tracking-wider text-text-muted">盈亏</div>
-          <div className={`text-[15px] font-bold ${pnlPositive ? 'text-up' : 'text-down'}`}>
-            {formatCurrency(totalPnl)}{' '}
-            <span className="text-[12px]">
-              ({startingBalance > 0 ? formatPct((totalPnl / startingBalance) * 100) : '0.00%'})
-            </span>
-          </div>
-        </div>
       </div>
     </header>
   );

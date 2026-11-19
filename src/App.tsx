@@ -122,6 +122,29 @@ export default function App() {
   }, []);
   const [invertPriceScale, setInvertPriceScale] = useState(false);
   const [focusTime, setFocusTime] = useState(0);
+  const [bottomH, setBottomH] = useState<number>(() => {
+    const v = Number(localStorage.getItem('replaytrade:bottom_h'));
+    return Number.isFinite(v) && v >= 160 ? v : 280;
+  });
+  const bottomHRef = useRef(bottomH);
+  bottomHRef.current = bottomH;
+  const onBottomDragDown = (e: React.PointerEvent<HTMLDivElement>): void => {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onBottomDragMove = (e: React.PointerEvent<HTMLDivElement>): void => {
+    if (e.buttons !== 1) return;
+    const h = window.innerHeight - e.clientY - 2;
+    setBottomH(Math.max(160, Math.min(window.innerHeight * 0.8, h)));
+  };
+  const onBottomDragUp = (e: React.PointerEvent<HTMLDivElement>): void => {
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    try {
+      localStorage.setItem('replaytrade:bottom_h', String(Math.round(bottomHRef.current)));
+    } catch {
+      /* ignore */
+    }
+  };
   const [onboarded, setOnboarded] = useState<boolean>(() => isOnboarded());
   const [showHelp, setShowHelp] = useState(false);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
@@ -913,7 +936,14 @@ export default function App() {
             <CircleHelp size={13} /> 快捷键
           </button>
         </div>
-        <div className="h-[260px] min-h-[160px] max-h-[75vh] resize-y overflow-y-auto">
+        <div
+          className="h-1.5 shrink-0 cursor-ns-resize bg-transparent transition-colors hover:bg-accent/40"
+          title="按住拖动调整高度"
+          onPointerDown={onBottomDragDown}
+          onPointerMove={onBottomDragMove}
+          onPointerUp={onBottomDragUp}
+        />
+        <div className="overflow-y-auto" style={{ height: bottomH }}>
           {activeTab === 'positions' && (
             <PositionsPanel
               positions={paper.state.positions}
