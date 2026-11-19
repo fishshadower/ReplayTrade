@@ -913,7 +913,7 @@ export default function App() {
             <CircleHelp size={13} /> 快捷键
           </button>
         </div>
-        <div className="max-h-[220px] overflow-y-auto lg:max-h-[240px]">
+        <div className="h-[260px] min-h-[160px] max-h-[75vh] resize-y overflow-y-auto">
           {activeTab === 'positions' && (
             <PositionsPanel
               positions={paper.state.positions}

@@ -1,5 +1,5 @@
 import { History } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { ClosedTrade } from '../types/trading';
 import { formatCurrency, formatDateTime, formatPrice } from '../utils/tradingCalculations';
 import { AUTO_TAG_BY_REASON, TAG_GROUPS, tagGroupOf } from '../utils/tradeTags';
@@ -187,11 +187,27 @@ function TagChip({ tag }: { tag: string }) {
 
 function TagPicker({ tags, onChange }: { tags: string[]; onChange: (next: string[]) => void }) {
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ left: number; bottom: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const toggle = (): void => {
+    if (!open) {
+      const r = btnRef.current?.getBoundingClientRect();
+      if (r) {
+        // fixed 向上弹：脱离底部面板的 overflow 裁剪；左侧越界钳回
+        setPos({
+          left: Math.max(8, Math.min(r.left, window.innerWidth - 336)),
+          bottom: window.innerHeight - r.top + 6,
+        });
+      }
+    }
+    setOpen((v) => !v);
+  };
   return (
     <div className="relative" onClick={(e) => e.stopPropagation()}>
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         title="点击编辑标签"
         className="flex max-w-[260px] flex-wrap items-center gap-1 rounded-sm border border-dashed border-bg-border px-1.5 py-1 text-left transition-colors hover:border-accent"
       >
@@ -201,7 +217,7 @@ function TagPicker({ tags, onChange }: { tags: string[]; onChange: (next: string
           tags.map((tag) => <TagChip key={tag} tag={tag} />)
         )}
       </button>
-      {open && (
+      {open && pos && (
         <>
           <button
             type="button"
@@ -209,7 +225,10 @@ function TagPicker({ tags, onChange }: { tags: string[]; onChange: (next: string
             className="fixed inset-0 z-40 cursor-default"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute left-0 top-full z-50 mt-1 w-[320px] rounded-md border border-bg-border bg-bg-panel p-2 shadow-neo">
+          <div
+            className="fixed z-50 w-[320px] rounded-md border border-bg-border bg-bg-panel p-2 shadow-neo"
+            style={{ left: pos.left, bottom: pos.bottom }}
+          >
             {TAG_GROUPS.map((g) => (
               <div key={g.key} className="mb-1.5 last:mb-0">
                 <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
