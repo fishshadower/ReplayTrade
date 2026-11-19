@@ -191,42 +191,40 @@ export function TradePanel({
             数量
           </label>
           <div className="mt-1 flex flex-wrap gap-1">
-            {['0.1', '0.2', '0.3', '1', '2', '3'].map((q) => (
+            {['0.01', '0.1', '0.2', '0.3', '1', '2', '3'].map((q) => (
               <QuickBtn key={q} onClick={() => setQty(q)} disabled={disabled}>
                 {q}
               </QuickBtn>
             ))}
           </div>
           <div className="h-1.5" />
-          <input
+          <ClearableInput
             id="tp-qty"
-            type="number"
-            inputMode="decimal"
-            min={0}
-            step="any"
             value={quantityStr}
-            onChange={(e) => setQty(e.target.value)}
+            onChange={setQty}
             className={inputCls(submitted && draft.quantity <= 0)}
             placeholder="0.0"
-            aria-label="数量"
+            ariaLabel="数量"
+            onClear={() => setQty('')}
           />
         </div>
         <div>
           <label htmlFor="tp-entry" className={labelCls}>
             开仓价
           </label>
-          <input
+          <ClearableInput
             id="tp-entry"
-            type="number"
-            inputMode="decimal"
-            step="any"
             value={entryStr}
-            onChange={(e) => {
+            onChange={(v) => {
               entryTouched.current = true;
-              setEntryStr(e.target.value);
+              setEntryStr(v);
             }}
             className={inputCls(submitted && draft.entryPrice <= 0)}
-            aria-label="开仓价"
+            ariaLabel="开仓价"
+            onClear={() => {
+              entryTouched.current = true;
+              setEntryStr('');
+            }}
           />
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -234,32 +232,28 @@ export function TradePanel({
             <label htmlFor="tp-sl" className={labelCls}>
               止损价
             </label>
-            <input
+            <ClearableInput
               id="tp-sl"
-              type="number"
-              inputMode="decimal"
-              step="any"
               value={slStr}
-              onChange={(e) => setSlStr(e.target.value)}
+              onChange={setSlStr}
               className={inputCls(slInvalid)}
               placeholder="选填"
-              aria-label="止损价"
+              ariaLabel="止损价"
+              onClear={() => setSlStr('')}
             />
           </div>
           <div>
             <label htmlFor="tp-tp" className={labelCls}>
               止盈价
             </label>
-            <input
+            <ClearableInput
               id="tp-tp"
-              type="number"
-              inputMode="decimal"
-              step="any"
               value={tpStr}
-              onChange={(e) => setTpStr(e.target.value)}
+              onChange={setTpStr}
               className={inputCls(tpInvalid)}
               placeholder="选填"
-              aria-label="止盈价"
+              ariaLabel="止盈价"
+              onClear={() => setTpStr('')}
             />
           </div>
         </div>
@@ -368,6 +362,52 @@ export function TradePanel({
           onConfirm={() => pendingDraft && place(pendingDraft)}
           onCancel={() => setConfirmOpen(false)}
         />
+      )}
+    </div>
+  );
+}
+
+function ClearableInput({
+  id,
+  value,
+  onChange,
+  className,
+  placeholder,
+  ariaLabel,
+  onClear,
+}: {
+  id: string;
+  value: string;
+  onChange: (v: string) => void;
+  className: string;
+  placeholder?: string;
+  ariaLabel: string;
+  onClear: () => void;
+}): JSX.Element {
+  return (
+    <div className="relative">
+      <input
+        id={id}
+        type="number"
+        inputMode="decimal"
+        min={0}
+        step="any"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={className + ' pr-7'}
+        placeholder={placeholder}
+        aria-label={ariaLabel}
+      />
+      {value !== '' && (
+        <button
+          type="button"
+          title="清空"
+          aria-label={`清空${ariaLabel}`}
+          onClick={onClear}
+          className="absolute right-1 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-bg-hover hover:text-text-primary"
+        >
+          <span className="text-[13px] leading-none">×</span>
+        </button>
       )}
     </div>
   );
