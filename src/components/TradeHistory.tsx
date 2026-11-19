@@ -33,7 +33,7 @@ export function TradeHistory({ history, decimals, maxRows = 50, onNoteEdit, onJu
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[980px] border-collapse font-mono text-[13px]">
+      <table className="w-full min-w-[1160px] border-collapse font-mono text-[13px]">
         <thead>
           <tr className="border-b border-bg-border text-left text-[12px] uppercase tracking-wider text-text-muted">
             <Th>#</Th>
@@ -49,6 +49,7 @@ export function TradeHistory({ history, decimals, maxRows = 50, onNoteEdit, onJu
             <Th>开仓时间</Th>
             <Th>平仓时间</Th>
             <Th>余额</Th>
+            <Th className="whitespace-nowrap">止损 / 止盈</Th>
             <Th>备注</Th>
           </tr>
         </thead>
@@ -117,17 +118,26 @@ export function TradeHistory({ history, decimals, maxRows = 50, onNoteEdit, onJu
                 <Td className="whitespace-nowrap pr-6 text-text-secondary">
                   {t.balanceAfter !== undefined ? formatCurrency(t.balanceAfter) : '—'}
                 </Td>
+                <Td className="whitespace-nowrap text-text-secondary">
+                  {t.exitStopLoss != null || t.exitTakeProfit != null
+                    ? `${t.exitStopLoss != null ? formatPrice(t.exitStopLoss, decimals) : '—'} / ${
+                        t.exitTakeProfit != null ? formatPrice(t.exitTakeProfit, decimals) : '—'
+                      }`
+                    : '—'}
+                </Td>
                 <Td>
                   {onNoteEdit ? (
-                    <input
-                      type="text"
+                    <textarea
+                      rows={2}
                       value={t.note ?? ''}
                       onChange={(e) => onNoteEdit(t.id, e.target.value)}
-                      placeholder="备注…"
-                      className="h-7 w-[200px] rounded-sm border border-bg-border bg-bg-elevated px-1.5 text-[12px] text-text-primary outline-none focus:border-accent"
+                      placeholder="备注…（成功/失败原因等）"
+                      className="w-[240px] resize-y rounded-sm border border-bg-border bg-bg-elevated px-1.5 py-1 text-[12px] leading-snug text-text-primary outline-none focus:border-accent"
                     />
                   ) : (
-                    <span className="text-[12px] italic text-accent">{t.note ?? ''}</span>
+                    <span className="block max-w-[240px] whitespace-pre-wrap text-[12px] italic text-accent">
+                      {t.note ?? ''}
+                    </span>
                   )}
                 </Td>
               </tr>

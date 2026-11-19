@@ -60,5 +60,12 @@ export function zigzag(
     }
   }
 
-  return out.sort((a, b) => a.time - b.time);
+  // 严格升序去重：lightweight-charts 的 setData 不允许重复时间戳（会抛异常导致白屏）
+  const sorted = out.sort((a, b) => a.time - b.time);
+  const dedup: Array<{ time: number; value: number }> = [];
+  for (const p of sorted) {
+    const last = dedup[dedup.length - 1];
+    if (!last || p.time > last.time) dedup.push(p);
+  }
+  return dedup;
 }

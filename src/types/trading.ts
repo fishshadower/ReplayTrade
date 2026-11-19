@@ -35,6 +35,10 @@ export interface ClosedTrade {
   closedAt: number;
   /** 平仓后账户余额 */
   balanceAfter?: number;
+  /** 平仓时刻生效的止损价（记录当时值，之后改动不影响） */
+  exitStopLoss?: number | null;
+  /** 平仓时刻生效的止盈价 */
+  exitTakeProfit?: number | null;
   /** 自由备注（如成功/失败原因） */
   note?: string;
 }

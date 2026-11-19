@@ -174,8 +174,8 @@ export function processCandle(
     const hit = evaluatePosition(position, candle);
     if (hit) {
       const trade = closePosition(position, hit.exitPrice, hit.reason, candle.time);
-      closedTrades.push(trade);
       balance += trade.pnl;
+      closedTrades.push({ ...trade, balanceAfter: balance });
     } else {
       remaining.push(position);
     }
@@ -243,6 +243,8 @@ export function closePosition(
     exitReason: reason,
     openedAt: position.openedAt,
     closedAt,
+    exitStopLoss: position.stopLoss ?? null,
+    exitTakeProfit: position.takeProfit ?? null,
   };
 }
 

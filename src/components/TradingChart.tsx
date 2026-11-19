@@ -1077,15 +1077,27 @@ export function TradingChart({
         });
       }
       for (const t of closedTrades ?? []) {
-        if (!visibleTimes.has(t.closedAt)) continue;
-        markers.push({
-          time: toChartTime(t.closedAt),
-          position: t.direction === 'long' ? 'aboveBar' : 'belowBar',
-          color: COLORS.text,
-          shape: 'square',
-          text: 'X',
-          size: 1,
-        });
+        // 进场标记（方向箭头），离场标记（X）——平仓后仍能看到进出两端
+        if (visibleTimes.has(t.openedAt)) {
+          markers.push({
+            time: toChartTime(t.openedAt),
+            position: t.direction === 'long' ? 'belowBar' : 'aboveBar',
+            color: t.direction === 'long' ? COLORS.up : COLORS.down,
+            shape: t.direction === 'long' ? 'arrowUp' : 'arrowDown',
+            text: t.direction === 'long' ? 'L' : 'S',
+            size: 1,
+          });
+        }
+        if (visibleTimes.has(t.closedAt)) {
+          markers.push({
+            time: toChartTime(t.closedAt),
+            position: t.direction === 'long' ? 'aboveBar' : 'belowBar',
+            color: COLORS.text,
+            shape: 'square',
+            text: 'X',
+            size: 1,
+          });
+        }
       }
     }
     plugin.setMarkers(markers);

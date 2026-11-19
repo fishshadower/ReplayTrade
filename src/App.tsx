@@ -51,6 +51,7 @@ import {
 } from './utils/sessionStore';
 import type { ReplaySessionRecord } from './utils/sessionStore';
 import { ReplaySessionsPanel } from './components/ReplaySessionsPanel';
+import { ChartErrorBoundary } from './components/ChartErrorBoundary';
 import {
   loadIndicatorInstances,
   saveIndicatorInstances,
@@ -627,7 +628,7 @@ export default function App() {
     </div>
   );
 
-  const chartNode = renderChart();
+  const chartNode = <ChartErrorBoundary>{renderChart()}</ChartErrorBoundary>;
 
   const tabButtons: { id: BottomTab; label: string; icon: React.ReactNode }[] = [
     { id: 'positions', label: '持仓', icon: <Briefcase size={13} /> },
