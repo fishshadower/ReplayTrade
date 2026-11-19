@@ -152,7 +152,7 @@ export function Header({
           disabled={!replayActive && !canStartReplay}
           className={`flex h-8 items-center gap-1.5 rounded-sm border px-3 text-[14px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
             replayActive
-              ? 'border-down/60 bg-down-dim text-down hover:bg-down'
+              ? 'border-down/60 bg-down-dim text-down hover:bg-down hover:text-white'
               : 'border-accent bg-accent text-white hover:bg-accent-hover'
           }`}
         >

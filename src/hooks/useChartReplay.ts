@@ -25,7 +25,7 @@ import {
  */
 export function useChartReplay() {
   const [state, setState] = useState<ReplayState>(() => createReplayState([]));
-  const [autoFollow, setAutoFollow] = useState(true);
+  const [autoFollow, setAutoFollow] = useState(false);
   const [followSignal, setFollowSignal] = useState(0);
 
   const stateRef = useRef(state);
