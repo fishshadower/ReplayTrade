@@ -227,3 +227,20 @@
 - TradingChart：SMA/EMA 周期可调（原写死 20/50）；ZigZag 主图紫色折线；均线 hover 值移入指标行
 ### 验收
 - 眼睛显隐即时生效；改周期立即重算；ZigZag 调回撤% 折线疏密变化；刷新后配置保留
+
+---
+
+# 第七轮迭代（2026-11-19 16:05 反馈：指标管理器）
+
+## 需求二十一：指标实例系统（TradingView 式）
+### 模型
+- 指标 = 实例列表 `IndicatorInstance[]`（id/type/params/color/visible），localStorage 持久化（新 key replaytrade:indicator_instances，老固定槽配置自动迁移）
+- 类型注册表 INDICATOR_REGISTRY：name/defaultParams/paramDefs/palette/max（成交量 max=1 独占）
+### 交互
+- 指标行每行：眼睛显隐 / 齿轮展开参数+色板换色 / ✕ 删除实例（成交量除外）
+- 指标行底部「＋ 指标」：弹出指标选择器，点击添加；同一类型可多实例（如两个 ZigZag 不同回撤%不同颜色）
+### 实现
+- series 由实例 diff 驱动（lineSeriesMapRef：增建/删销/颜色显隐即时 apply）
+- 喂数据：SMA/EMA 回放 append 走 200 根尾窗增量；ZigZag 全量 O(n) 重算
+### 验收
+- 添加两个 ZigZag(3%)/ZigZag(8%) 不同色共存；删除即消失；配置刷新保留

@@ -41,13 +41,15 @@ import {
   CalendarSearch,
   CandlestickChart,
   Eye,
+  Plus,
   EyeOff,
   LineChart,
   ScanSearch,
   Settings2,
   X,
 } from 'lucide-react';
-import type { IndicatorConfigs } from '../indicators/config';
+import type { IndicatorInstance } from '../indicators/config';
+import { INDICATOR_REGISTRY, createInstance, defOf, instanceLabel } from '../indicators/config';
 import { zigzag as computeZigzag } from '../indicators/zigzag';
 
 interface TradingChartProps {
@@ -68,8 +70,8 @@ interface TradingChartProps {
   isPlaying: boolean;
   autoFollow: boolean;
   followSignal: number;
-  indicators: IndicatorConfigs;
-  onUpdateIndicator: (next: IndicatorConfigs) => void;
+  indicators: IndicatorInstance[];
+  onUpdateIndicators: (next: IndicatorInstance[]) => void;
   invertPriceScale?: boolean;
   onUpdatePositionLevels?: (id: string, levels: { stopLoss?: number | null; takeProfit?: number | null }) => void;
   /** 变化时视图跳到该时间（秒），用于历史成交点击跳转 */
@@ -159,7 +161,7 @@ export function TradingChart({
   autoFollow,
   followSignal,
   indicators,
-  onUpdateIndicator,
+  onUpdateIndicators,
   invertPriceScale = false,
   onUpdatePositionLevels,
   focusTimeSignal = 0,
@@ -171,13 +173,11 @@ export function TradingChart({
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
-  const emaSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
-  const smaSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const lineSeriesMapRef = useRef<Map<string, ISeriesApi<'Line'>>>(new Map());
   const currentPriceLineRef = useRef<IPriceLine | null>(null);
   const priceLineRefs = useRef<Map<string, IPriceLine[]>>(new Map());
   const markersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
   const areaSeriesRef = useRef<ISeriesApi<'Area'> | null>(null);
-  const zigzagSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const markersAreaRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
   const lastCountRef = useRef<number>(0);
   const lastDataKeyRef = useRef<string>('');
@@ -205,6 +205,7 @@ export function TradingChart({
   const [awayFromEdge, setAwayFromEdge] = useState(false);
   const [gotoOpen, setGotoOpen] = useState(false);
   const [chartType, setChartType] = useState<'candles' | 'area'>('candles');
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [gotoValue, setGotoValue] = useState('');
   const drawingEngineRef = useRef<DrawingEngine | null>(null);
   const drawingActiveRef = useRef(false);
@@ -381,32 +382,6 @@ export function TradingChart({
     });
     volumeSeriesRef.current = volumeSeries;
 
-    const smaSeries = chart.addSeries(LineSeries, {
-      color: COLORS.sma,
-      lineWidth: 1,
-      priceLineVisible: false,
-      lastValueVisible: false,
-      crosshairMarkerVisible: false,
-    });
-    const emaSeries = chart.addSeries(LineSeries, {
-      color: COLORS.ema,
-      lineWidth: 1,
-      priceLineVisible: false,
-      lastValueVisible: false,
-      crosshairMarkerVisible: false,
-    });
-    smaSeriesRef.current = smaSeries;
-    emaSeriesRef.current = emaSeries;
-
-    const zigzagSeries = chart.addSeries(LineSeries, {
-      color: '#a855f7',
-      lineWidth: 2,
-      priceLineVisible: false,
-      lastValueVisible: false,
-      crosshairMarkerVisible: false,
-    });
-    zigzagSeriesRef.current = zigzagSeries;
-
     const priceLine = candleSeries.createPriceLine({
       price: 0,
       color: 'rgba(255,255,255,0.6)',
@@ -481,9 +456,7 @@ export function TradingChart({
       areaSeriesRef.current = null;
       markersAreaRef.current = null;
       volumeSeriesRef.current = null;
-      smaSeriesRef.current = null;
-      emaSeriesRef.current = null;
-      zigzagSeriesRef.current = null;
+      lineSeriesMapRef.current.clear();
       currentPriceLineRef.current = null;
       markersRef.current = null;
       lastCountRef.current = 0;
@@ -516,16 +489,40 @@ export function TradingChart({
   }, [decimals]);
 
   // Volume pane visibility toggle (TradingView parity).
+  const volumeInst = indicators.find((i) => i.type === 'volume');
   useEffect(() => {
-    volumeSeriesRef.current?.applyOptions({ visible: indicators.volume.visible });
-  }, [indicators.volume.visible]);
+    volumeSeriesRef.current?.applyOptions({ visible: volumeInst ? volumeInst.visible : true });
+  }, [volumeInst?.visible]);
 
-  // 均线/锯齿显隐
+  // 指标实例 series 同步：新增建线、移除删线、颜色/显隐即时应用
   useEffect(() => {
-    smaSeriesRef.current?.applyOptions({ visible: indicators.sma.visible });
-    emaSeriesRef.current?.applyOptions({ visible: indicators.ema.visible });
-    zigzagSeriesRef.current?.applyOptions({ visible: indicators.zigzag.visible });
-  }, [indicators.sma.visible, indicators.ema.visible, indicators.zigzag.visible]);
+    const chart = chartRef.current;
+    if (!chart) return;
+    const map = lineSeriesMapRef.current;
+    const alive = new Set(indicators.filter((i) => i.type !== 'volume').map((i) => i.id));
+    for (const [id, s] of map) {
+      if (!alive.has(id)) {
+        chart.removeSeries(s);
+        map.delete(id);
+      }
+    }
+    for (const inst of indicators) {
+      if (inst.type === 'volume') continue;
+      let s = map.get(inst.id);
+      if (!s) {
+        s = chart.addSeries(LineSeries, {
+          color: inst.color,
+          lineWidth: inst.type === 'zigzag' ? 2 : 1,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          crosshairMarkerVisible: false,
+        });
+        map.set(inst.id, s);
+      }
+      s.applyOptions({ color: inst.color, visible: inst.visible });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [indicators]);
 
   // Invert the price scale (TradingView parity): flips the chart vertically so
   // downtrends read as uptrends. Reset manual panning and refit so the flipped
@@ -682,45 +679,66 @@ export function TradingChart({
       v.setData([]);
     }
 
-    // Indicators
-    const smaSeries = smaSeriesRef.current;
-    const emaSeries = emaSeriesRef.current;
-    if (smaSeries && emaSeries) {
-      if ((indicators.sma.visible || indicators.ema.visible) && visible.length > 2) {
-        if (isAppend) {
-          // Replay tick: only the newest bar is added, so just compute the
-          // latest SMA/EMA over a bounded tail instead of the whole slice
-          // (SMA20 is exact over its 20-bar window; EMA50 is indistinguishable
-          // from the full-series value after a 200-bar warm-up).
-          const lastVisible = visible[visible.length - 1];
-          if (!lastVisible) return;
+    // 指标实例喂数（实例驱动：SMA/EMA/ZigZag 任意多实例）
+    const lineMap = lineSeriesMapRef.current;
+    const lineInstances = indicators.filter((i) => i.type !== 'volume' && i.visible);
+    if (lineInstances.length > 0 && visible.length >= 2) {
+      if (isAppend) {
+        // 回放推进：均线只在 200 根尾窗上算最新值（SMA 精确、EMA 热身后无差）；ZigZag 全量 O(n) 重算
+        const lastVisible = visible[visible.length - 1];
+        if (lastVisible) {
           const tail = visible.slice(-200);
-          const tS = sma(tail, indicators.sma.period);
-          const tE = ema(tail, indicators.ema.period);
-          const sl = tS[tS.length - 1];
-          const el = tE[tE.length - 1];
-          if (sl !== null) smaSeries.update({ time: toChartTime(lastVisible.time), value: sl });
-          if (el !== null) emaSeries.update({ time: toChartTime(lastVisible.time), value: el });
-        } else {
-          const s = sma(visible, indicators.sma.period);
-          const e = ema(visible, indicators.ema.period);
-          smaSeries.setData(
-            s
-              .map((val, i) => (val === null || !visible[i] ? null : { time: toChartTime(visible[i].time), value: val }))
-              .filter(Boolean) as LineData[],
-          );
-          emaSeries.setData(
-            e
-              .map((val, i) => (val === null || !visible[i] ? null : { time: toChartTime(visible[i].time), value: val }))
-              .filter(Boolean) as LineData[],
+          for (const inst of lineInstances) {
+            const s = lineMap.get(inst.id);
+            if (!s) continue;
+            if (inst.type === 'sma' || inst.type === 'ema') {
+              const arr =
+              inst.type === 'sma' ? sma(tail, inst.params.period ?? 20) : ema(tail, inst.params.period ?? 50);
+              const v = arr[arr.length - 1];
+              if (v !== null && v !== undefined) s.update({ time: toChartTime(lastVisible.time), value: v });
+            }
+          }
+        }
+        for (const inst of lineInstances) {
+          if (inst.type !== 'zigzag') continue;
+          const s = lineMap.get(inst.id);
+          s?.setData(
+            computeZigzag(visible, inst.params.deviationPct ?? 5).map((p) => ({
+              time: toChartTime(p.time),
+              value: p.value,
+            })),
           );
         }
-      } else if (!isAppend) {
-        smaSeries.setData([]);
-        emaSeries.setData([]);
+      } else {
+        for (const inst of lineInstances) {
+          const s = lineMap.get(inst.id);
+          if (!s) continue;
+          if (inst.type === 'sma' || inst.type === 'ema') {
+            const arr = inst.type === 'sma'
+            ? sma(visible, inst.params.period ?? 20)
+            : ema(visible, inst.params.period ?? 50);
+            s.setData(
+              arr
+                .map((val, i) =>
+                  val === null || !visible[i] ? null : { time: toChartTime(visible[i].time), value: val },
+                )
+                .filter(Boolean) as LineData[],
+            );
+          } else if (inst.type === 'zigzag') {
+            s.setData(
+              computeZigzag(visible, inst.params.deviationPct ?? 5).map((p) => ({
+                time: toChartTime(p.time),
+                value: p.value,
+              })),
+            );
+          }
+        }
       }
+    } else if (!isAppend) {
+      lineMap.forEach((s) => s.setData([]));
     }
-  }, [visible, indicators.sma.visible, indicators.ema.visible, indicators.sma.period, indicators.ema.period]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, indicators]);
 
   // Drawing context: per-symbol storage + reveal-window for coordinate math.
   useEffect(() => {
@@ -1158,34 +1176,29 @@ export function TradingChart({
   // Indicator values at the hovered bar (TradingView legend parity). The SMA/EMA
   // arrays are recomputed only when the revealed slice changes (not on every
   // crosshair hover), then indexed by the hovered bar.
-  const indicatorArrays = useMemo(() => {
-    if ((!indicators.sma.visible && !indicators.ema.visible) || visible.length < 2) return null;
-    return {
-      sma: indicators.sma.visible ? sma(visible, indicators.sma.period) : null,
-      ema: indicators.ema.visible ? ema(visible, indicators.ema.period) : null,
-    };
-  }, [visible, indicators.sma.visible, indicators.ema.visible, indicators.sma.period, indicators.ema.period]);
-
-  const zigzagData = useMemo(
-    () => (indicators.zigzag.visible ? computeZigzag(visible, indicators.zigzag.deviationPct) : []),
-    [visible, indicators.zigzag.visible, indicators.zigzag.deviationPct],
-  );
-
-  useEffect(() => {
-    zigzagSeriesRef.current?.setData(
-      zigzagData.map((p) => ({ time: toChartTime(p.time), value: p.value })),
-    );
-  }, [zigzagData]);
+  // 均线值缓存（hover 索引用）：per 实例，仅 visible 变化重算，hover 不重算
+  const computedArrays = useMemo(() => {
+    const map: Record<string, Array<number | null>> = {};
+    for (const inst of indicators) {
+      if (!inst.visible || (inst.type !== 'sma' && inst.type !== 'ema')) continue;
+      map[inst.id] =
+        inst.type === 'sma'
+            ? sma(visible, inst.params.period ?? 20)
+            : ema(visible, inst.params.period ?? 50);
+    }
+    return map;
+  }, [visible, indicators]);
 
   const indicatorValues = useMemo(() => {
-    if (!indicatorArrays || !hovered) return null;
+    if (!hovered) return null;
     const idx = visible.findIndex((c) => c.time === hovered.time);
     if (idx < 0) return null;
-    return {
-      sma: indicatorArrays.sma ? indicatorArrays.sma[idx] : null,
-      ema: indicatorArrays.ema ? indicatorArrays.ema[idx] : null,
-    };
-  }, [indicatorArrays, hovered, visible]);
+    const out: Record<string, number | null> = {};
+    for (const [id, arr] of Object.entries(computedArrays)) {
+      out[id] = arr[idx] ?? null;
+    }
+    return out;
+  }, [computedArrays, hovered, visible]);
 
   const selectedDrawing = selectedDrawingId
     ? (drawingEngineRef.current?.getDrawings().find((d) => d.id === selectedDrawingId) ?? null)
@@ -1432,85 +1445,132 @@ export function TradingChart({
             )}
           </div>
         )}
-        {/* 指标行（TradingView 式）：眼睛显隐 / 齿轮调参 */}
+        {/* 指标行（TradingView 式）：实例驱动，眼睛显隐 / 齿轮调参换色 / ✕ 删除 */}
         <div className="pointer-events-auto mt-1.5 flex flex-col items-start gap-0.5 text-[12px]">
-          <IndRow
-            label={`SMA(${indicators.sma.period})`}
-            value={indicatorValues?.sma ?? null}
-            decimals={decimals}
-            color="#4f8cff"
-            visible={indicators.sma.visible}
-            onToggle={() =>
-              onUpdateIndicator({ ...indicators, sma: { ...indicators.sma, visible: !indicators.sma.visible } })
-            }
-            gear={
-              <ParamInput
-                label="周期"
-                value={indicators.sma.period}
-                min={2}
-                max={500}
-                onCommit={(v) => onUpdateIndicator({ ...indicators, sma: { ...indicators.sma, period: v } })}
-              />
-            }
-          />
-          <IndRow
-            label={`EMA(${indicators.ema.period})`}
-            value={indicatorValues?.ema ?? null}
-            decimals={decimals}
-            color="#eab308"
-            visible={indicators.ema.visible}
-            onToggle={() =>
-              onUpdateIndicator({ ...indicators, ema: { ...indicators.ema, visible: !indicators.ema.visible } })
-            }
-            gear={
-              <ParamInput
-                label="周期"
-                value={indicators.ema.period}
-                min={2}
-                max={500}
-                onCommit={(v) => onUpdateIndicator({ ...indicators, ema: { ...indicators.ema, period: v } })}
-              />
-            }
-          />
-          <IndRow
-            label={`ZigZag(${indicators.zigzag.deviationPct}%)`}
-            value={null}
-            decimals={decimals}
-            color="#a855f7"
-            visible={indicators.zigzag.visible}
-            onToggle={() =>
-              onUpdateIndicator({
-                ...indicators,
-                zigzag: { ...indicators.zigzag, visible: !indicators.zigzag.visible },
-              })
-            }
-            gear={
-              <ParamInput
-                label="回撤%"
-                value={indicators.zigzag.deviationPct}
-                min={1}
-                max={50}
-                onCommit={(v) =>
-                  onUpdateIndicator({
-                    ...indicators,
-                    zigzag: { ...indicators.zigzag, deviationPct: v },
-                  })
+          {indicators.map((inst) => {
+            const def = defOf(inst.type);
+            return (
+              <IndRow
+                key={inst.id}
+                label={instanceLabel(inst)}
+                value={def.showValue ? indicatorValues?.[inst.id] ?? null : undefined}
+                rawValue={inst.type === 'volume' && hovered ? formatVolume(hovered.volume) : undefined}
+                decimals={decimals}
+                color={inst.color}
+                visible={inst.visible}
+                onToggle={() =>
+                  onUpdateIndicators(
+                    indicators.map((x) => (x.id === inst.id ? { ...x, visible: !x.visible } : x)),
+                  )
+                }
+                onRemove={
+                  def.max === 1
+                    ? undefined
+                    : () => onUpdateIndicators(indicators.filter((x) => x.id !== inst.id))
+                }
+                gear={
+                  def.paramDefs.length === 0 && inst.type === 'volume' ? null : (
+                    <span className="flex flex-wrap items-center gap-1">
+                      {def.paramDefs.map((pd) => (
+                        <ParamInput
+                          key={pd.key}
+                          label={pd.label}
+                          value={inst.params[pd.key] ?? def.defaultParams[pd.key] ?? pd.min}
+                          min={pd.min}
+                          max={pd.max}
+                          onCommit={(v) =>
+                            onUpdateIndicators(
+                              indicators.map((x) =>
+                                x.id === inst.id ? { ...x, params: { ...x.params, [pd.key]: v } } : x,
+                              ),
+                            )
+                          }
+                        />
+                      ))}
+                      <span className="ml-1 flex items-center gap-1">
+                        {(def.palette.length > 1 ? def.palette : ['#4f8cff', '#eab308', '#a855f7', '#22d3ee', '#f97316', '#ec4899']).map((c) => (
+                          <button
+                            key={c}
+                            type="button"
+                            title={`颜色 ${c}`}
+                            aria-label={`颜色 ${c}`}
+                            onClick={() =>
+                              onUpdateIndicators(
+                                indicators.map((x) => (x.id === inst.id ? { ...x, color: c } : x)),
+                              )
+                            }
+                            className={`h-3.5 w-3.5 rounded-full border ${
+                              inst.color === c ? 'border-white' : 'border-black/40'
+                            } transition-transform hover:scale-110`}
+                            style={{ backgroundColor: c }}
+                          />
+                        ))}
+                      </span>
+                    </span>
+                  )
                 }
               />
-            }
-          />
-          <IndRow
-            label="成交量"
-            rawValue={hovered ? formatVolume(hovered.volume) : null}
-            color="#9aa6bd"
-            visible={indicators.volume.visible}
-            onToggle={() =>
-              onUpdateIndicator({ ...indicators, volume: { visible: !indicators.volume.visible } })
-            }
-            gear={null}
-          />
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            className="mt-0.5 flex items-center gap-1 rounded-sm px-1 py-px font-mono text-[11px] font-semibold text-accent transition-colors hover:bg-accent-dim"
+          >
+            <Plus size={11} /> 指标
+          </button>
         </div>
       </div>
+
+      {/* 指标选择器 */}
+      {pickerOpen && (
+        <div
+          className="absolute left-2 top-24 z-30 w-[240px] rounded-md border border-bg-border bg-bg-panel/95 p-2 shadow-neo backdrop-blur-sm animate-fade-in"
+          onPointerDown={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-label="添加指标"
+        >
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-[13px] font-bold text-text-primary">添加指标</span>
+            <button
+              type="button"
+              onClick={() => setPickerOpen(false)}
+              aria-label="关闭"
+              className="text-text-muted hover:text-text-primary"
+            >
+              <X size={14} />
+            </button>
+          </div>
+          <div className="flex flex-col">
+            {INDICATOR_REGISTRY.map((def) => {
+              const count = indicators.filter((i) => i.type === def.type).length;
+              const full = def.max !== undefined && count >= def.max;
+              return (
+                <button
+                  key={def.type}
+                  type="button"
+                  disabled={full}
+                  onClick={() => {
+                    onUpdateIndicators([...indicators, createInstance(def.type, indicators)]);
+                    setPickerOpen(false);
+                  }}
+                  className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[13px] text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: def.defaultColor }} />
+                  <span className="flex-1">{def.name}</span>
+                  <span className="text-[11px] text-text-muted">
+                    {full ? '已添加' : def.max === 1 ? '' : '可多个'}
+                  </span>
+                  <Plus size={12} />
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1.5 text-[11px] leading-snug text-text-muted">
+            同一指标可添加多个实例，参数与颜色独立。
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -1524,6 +1584,7 @@ function IndRow({
   color,
   visible,
   onToggle,
+  onRemove,
   gear,
 }: {
   label: string;
@@ -1535,6 +1596,7 @@ function IndRow({
   color: string;
   visible: boolean;
   onToggle: () => void;
+  onRemove?: () => void;
   gear: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -1567,6 +1629,17 @@ function IndRow({
         </button>
       )}
       {gear && open && gear}
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          title="删除该指标"
+          aria-label="删除该指标"
+          className="rounded-sm p-0.5 text-text-muted transition-colors hover:text-down"
+        >
+          <X size={11} />
+        </button>
+      )}
     </div>
   );
 }

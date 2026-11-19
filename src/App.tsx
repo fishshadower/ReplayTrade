@@ -51,8 +51,11 @@ import {
 } from './utils/sessionStore';
 import type { ReplaySessionRecord } from './utils/sessionStore';
 import { ReplaySessionsPanel } from './components/ReplaySessionsPanel';
-import { loadIndicatorConfigs, saveIndicatorConfigs } from './indicators/config';
-import type { IndicatorConfigs } from './indicators/config';
+import {
+  loadIndicatorInstances,
+  saveIndicatorInstances,
+} from './indicators/config';
+import type { IndicatorInstance } from './indicators/config';
 
 const STORAGE_SYMBOL = 'replaytrade:symbol';
 const STORAGE_TF = 'replaytrade:timeframe';
@@ -110,10 +113,10 @@ export default function App() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [equitySeries, setEquitySeries] = useState<number[]>([]);
   const [sessions, setSessions] = useState<ReplaySessionRecord[]>(() => loadSessions());
-  const [indicators, setIndicators] = useState<IndicatorConfigs>(() => loadIndicatorConfigs());
-  const handleUpdateIndicators = useCallback((next: IndicatorConfigs) => {
+  const [indicators, setIndicators] = useState<IndicatorInstance[]>(() => loadIndicatorInstances());
+  const handleUpdateIndicators = useCallback((next: IndicatorInstance[]) => {
     setIndicators(next);
-    saveIndicatorConfigs(next);
+    saveIndicatorInstances(next);
   }, []);
   const [invertPriceScale, setInvertPriceScale] = useState(false);
   const [focusTime, setFocusTime] = useState(0);
@@ -588,7 +591,7 @@ export default function App() {
         autoFollow={replay.autoFollow}
         followSignal={replay.followSignal}
         indicators={indicators}
-        onUpdateIndicator={handleUpdateIndicators}
+        onUpdateIndicators={handleUpdateIndicators}
         invertPriceScale={invertPriceScale}
         onUpdatePositionLevels={paper.updatePositionLevels}
         focusTimeSignal={focusTime}
