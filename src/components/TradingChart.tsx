@@ -1253,7 +1253,7 @@ export function TradingChart({
           {candles.length === 0 ? '无数据' : replayActive ? '回放' : symbol}
         </span>
       </div>
-      <div className="absolute bottom-2 left-2 z-20 flex max-w-[calc(100%-16px)] items-start gap-2">
+      <div className="absolute bottom-2 left-2 z-[70] flex max-w-[calc(100%-16px)] items-start gap-2">
         <DrawingToolbar
           tool={tool}
           onToolChange={handleToolChange}
