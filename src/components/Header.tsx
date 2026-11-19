@@ -1,7 +1,6 @@
 import { ArrowDownUp, Camera, CandlestickChart, CircleHelp, Expand, Maximize2, Minimize2, PanelsTopLeft, Play, X } from 'lucide-react';
 import type { DataSource, DataSourceOption, Timeframe } from '../types/market';
 import { SYMBOLS, TIME_FRAMES } from '../types/market';
-import { formatCurrency, formatPct } from '../utils/tradingCalculations';
 import { Tooltip } from './ui';
 
 interface HeaderProps {
@@ -9,8 +8,7 @@ interface HeaderProps {
   timeframe: Timeframe;
   onSymbolChange: (s: string) => void;
   onTimeframeChange: (t: Timeframe) => void;
-  balance: number;
-  totalPnl: number;
+
   currentPrice: number;
   decimals: number;
   source: DataSource | null;
@@ -36,8 +34,7 @@ export function Header({
   timeframe,
   onSymbolChange,
   onTimeframeChange,
-  balance,
-  totalPnl,
+
   currentPrice,
   decimals,
   source,
