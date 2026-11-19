@@ -13,9 +13,10 @@ interface ReplaySessionsPanelProps {
   onClear: () => void;
   onUpdateNote: (id: string, note: string) => void;
   onUpdateTradeNote: (sessionId: string, tradeId: string, note: string) => void;
+  onUpdateTradeTags: (sessionId: string, tradeId: string, tags: string[]) => void;
 }
 
-export function ReplaySessionsPanel({ sessions, decimals, onDelete, onClear, onUpdateNote, onUpdateTradeNote }: ReplaySessionsPanelProps) {
+export function ReplaySessionsPanel({ sessions, decimals, onDelete, onClear, onUpdateNote, onUpdateTradeNote, onUpdateTradeTags }: ReplaySessionsPanelProps) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [editNoteId, setEditNoteId] = useState<string | null>(null);
@@ -141,7 +142,7 @@ export function ReplaySessionsPanel({ sessions, decimals, onDelete, onClear, onU
                   <Trash2 size={12} />
                 </button>
               </div>
-              {open && <SessionDetail rec={rec} decimals={decimals} onNoteEdit={(tid, note) => onUpdateTradeNote(rec.id, tid, note)} />}
+              {open && <SessionDetail rec={rec} decimals={decimals} onNoteEdit={(tid, note) => onUpdateTradeNote(rec.id, tid, note)} onTagsEdit={(tid, tags) => onUpdateTradeTags(rec.id, tid, tags)} />}
             </div>
           );
         })}
@@ -154,10 +155,12 @@ function SessionDetail({
   rec,
   decimals,
   onNoteEdit,
+  onTagsEdit,
 }: {
   rec: ReplaySessionRecord;
   decimals: number;
   onNoteEdit: (tradeId: string, note: string) => void;
+  onTagsEdit: (tradeId: string, tags: string[]) => void;
 }) {
   const { perf, equitySeries, maxDrawdown } = computeSessionStats(rec);
   const netPnl = rec.totalPnl;
@@ -194,7 +197,7 @@ function SessionDetail({
         </div>
         <EquityChart series={equitySeries} />
       </div>
-      <TradeHistory history={rec.trades} decimals={decimals} onNoteEdit={onNoteEdit} />
+      <TradeHistory history={rec.trades} decimals={decimals} onNoteEdit={onNoteEdit} onTagsEdit={onTagsEdit} />
     </div>
   );
 }

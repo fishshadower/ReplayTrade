@@ -48,6 +48,7 @@ import {
   loadSessions,
   updateSessionNote,
   updateSessionTradeNote,
+  updateSessionTradeTags,
 } from './utils/sessionStore';
 import type { ReplaySessionRecord } from './utils/sessionStore';
 import { ReplaySessionsPanel } from './components/ReplaySessionsPanel';
@@ -928,6 +929,7 @@ export default function App() {
               history={paper.state.history}
               decimals={decimals}
               onNoteEdit={paper.updateTradeNote}
+              onTagsEdit={paper.updateTradeTags}
               onJumpTo={(t) => setFocusTime(t)}
             />
           )}
@@ -949,6 +951,7 @@ export default function App() {
               onClear={() => setSessions(clearSessions())}
               onUpdateNote={(id, note) => setSessions(updateSessionNote(id, note))}
               onUpdateTradeNote={(sid, tid, note) => setSessions(updateSessionTradeNote(sid, tid, note))}
+              onUpdateTradeTags={(sid, tid, tags) => setSessions(updateSessionTradeTags(sid, tid, tags))}
             />
           )}
           {activeTab === 'session' && (

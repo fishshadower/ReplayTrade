@@ -1,6 +1,8 @@
 import { History } from 'lucide-react';
+import { useState } from 'react';
 import type { ClosedTrade } from '../types/trading';
 import { formatCurrency, formatDateTime, formatPrice } from '../utils/tradingCalculations';
+import { AUTO_TAG_BY_REASON, TAG_GROUPS, tagGroupOf } from '../utils/tradeTags';
 
 interface TradeHistoryProps {
   history: ClosedTrade[];
@@ -10,6 +12,8 @@ interface TradeHistoryProps {
   onNoteEdit?: (tradeId: string, note: string) => void;
   /** 提供时开/平仓时间可点击跳转 K 线 */
   onJumpTo?: (time: number) => void;
+  /** 提供时标签可编辑 */
+  onTagsEdit?: (tradeId: string, tags: string[]) => void;
 }
 
 const REASON_LABEL: Record<ClosedTrade['exitReason'], string> = {
@@ -19,7 +23,7 @@ const REASON_LABEL: Record<ClosedTrade['exitReason'], string> = {
   'replay-ended': '回放结束',
 };
 
-export function TradeHistory({ history, decimals, maxRows = 50, onNoteEdit, onJumpTo }: TradeHistoryProps) {
+export function TradeHistory({ history, decimals, maxRows = 50, onNoteEdit, onJumpTo, onTagsEdit }: TradeHistoryProps) {
   if (history.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 px-4 py-10 text-center">
@@ -33,7 +37,7 @@ export function TradeHistory({ history, decimals, maxRows = 50, onNoteEdit, onJu
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[1160px] border-collapse font-mono text-[13px]">
+      <table className="w-full min-w-[1360px] border-collapse font-mono text-[13px]">
         <thead>
           <tr className="border-b border-bg-border text-left text-[12px] uppercase tracking-wider text-text-muted">
             <Th>#</Th>
@@ -50,6 +54,7 @@ export function TradeHistory({ history, decimals, maxRows = 50, onNoteEdit, onJu
             <Th>平仓时间</Th>
             <Th>余额</Th>
             <Th className="whitespace-nowrap">止损 / 止盈</Th>
+            <Th>标签</Th>
             <Th>备注</Th>
           </tr>
         </thead>
@@ -126,6 +131,18 @@ export function TradeHistory({ history, decimals, maxRows = 50, onNoteEdit, onJu
                     : '—'}
                 </Td>
                 <Td>
+                  {onTagsEdit ? (
+                    <TagPicker tags={t.tags ?? []} onChange={(tags) => onTagsEdit(t.id, tags)} />
+                  ) : (
+                    <span className="flex max-w-[240px] flex-wrap gap-1">
+                      <TagChip tag={AUTO_TAG_BY_REASON[t.exitReason] ?? t.exitReason} />
+                      {(t.tags ?? []).map((tag) => (
+                        <TagChip key={tag} tag={tag} />
+                      ))}
+                    </span>
+                  )}
+                </Td>
+                <Td>
                   {onNoteEdit ? (
                     <textarea
                       rows={2}
@@ -155,4 +172,73 @@ function Th({ children, className = '' }: { children?: React.ReactNode; classNam
 
 function Td({ children, className = '' }: { children?: React.ReactNode; className?: string }) {
   return <td className={`px-2.5 py-2 ${className}`}>{children}</td>;
+}
+
+
+function TagChip({ tag }: { tag: string }) {
+  const g = tagGroupOf(tag);
+  const cls = g?.cls ?? 'border-bg-border bg-bg-elevated text-text-secondary';
+  return (
+    <span className={`inline-block whitespace-nowrap rounded-sm border px-1 py-px text-[11px] font-semibold ${cls}`}>
+      {tag}
+    </span>
+  );
+}
+
+function TagPicker({ tags, onChange }: { tags: string[]; onChange: (next: string[]) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative" onClick={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        title="点击编辑标签"
+        className="flex max-w-[260px] flex-wrap items-center gap-1 rounded-sm border border-dashed border-bg-border px-1.5 py-1 text-left transition-colors hover:border-accent"
+      >
+        {tags.length === 0 ? (
+          <span className="text-[11px] text-text-muted">+ 标签</span>
+        ) : (
+          tags.map((tag) => <TagChip key={tag} tag={tag} />)
+        )}
+      </button>
+      {open && (
+        <>
+          <button
+            type="button"
+            aria-label="关闭标签选择"
+            className="fixed inset-0 z-40 cursor-default"
+            onClick={() => setOpen(false)}
+          />
+          <div className="absolute left-0 top-full z-50 mt-1 w-[320px] rounded-md border border-bg-border bg-bg-panel p-2 shadow-neo">
+            {TAG_GROUPS.map((g) => (
+              <div key={g.key} className="mb-1.5 last:mb-0">
+                <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+                  {g.name}
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {g.tags.map((tag) => {
+                    const on = tags.includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() =>
+                          onChange(on ? tags.filter((x) => x !== tag) : [...tags, tag])
+                        }
+                        className={`rounded-sm border px-1.5 py-0.5 text-[11px] font-semibold transition-colors ${
+                          on ? g.cls : 'border-bg-border bg-bg-elevated text-text-muted hover:text-text-primary'
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
 }

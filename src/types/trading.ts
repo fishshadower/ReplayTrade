@@ -41,6 +41,8 @@ export interface ClosedTrade {
   exitTakeProfit?: number | null;
   /** 自由备注（如成功/失败原因） */
   note?: string;
+  /** 复盘标签（四维度+结论，固定清单见 utils/tradeTags.ts） */
+  tags?: string[];
 }
 
 export interface TradingState {

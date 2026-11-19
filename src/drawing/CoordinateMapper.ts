@@ -108,6 +108,19 @@ export class CoordinateMapper {
     return lo - 1 + (time - left) / span;
   }
 
+  /**
+   * 右侧空白区：把任意时间对齐到"未来虚拟 K 线"（last + N*tf）。
+   * 虚拟时间与交易所周期对齐，回放推进后会自然落在真实 K 线上，锚点不漂移。
+   */
+  alignToFutureBar(time: number): number {
+    const n = this.times.length;
+    if (n === 0 || this.tf <= 0) return time;
+    const last = this.times[n - 1];
+    if (last === undefined || time <= last) return time;
+    const bars = Math.round((time - last) / this.tf);
+    return last + bars * this.tf;
+  }
+
   logicalToTime(L: number): number | null {
     const n = this.times.length;
     if (n === 0) return null;

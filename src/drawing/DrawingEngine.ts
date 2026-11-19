@@ -1326,10 +1326,9 @@ export class DrawingEngine implements ISeriesPrimitive<Time> {
   }
 
   private clampTime(time: number): number {
-    if (this.revealTime !== null && this.replayActive) {
-      return Math.min(time, this.revealTime);
-    }
-    return time;
+    // 不再钳回最后一根 K 线：右侧空白按周期对齐成"未来虚拟 K 线"，
+    // 允许把趋势线等画到未揭示区域做预判位（虚拟时间与真实 K 线对齐，推进后不漂移）
+    return this.mapper.alignToFutureBar(time);
   }
 
   // ------------------------------------------------------------------ render

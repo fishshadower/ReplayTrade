@@ -83,6 +83,20 @@ export function updateSessionTradeNote(sessionId: string, tradeId: string, note:
   return next;
 }
 
+/** 编辑某批内某笔成交的标签。 */
+export function updateSessionTradeTags(sessionId: string, tradeId: string, tags: string[]): ReplaySessionRecord[] {
+  const next = loadSessions().map((r) =>
+    r.id === sessionId
+      ? {
+          ...r,
+          trades: r.trades.map((t) => (t.id === tradeId ? { ...t, tags: tags.length > 0 ? tags : undefined } : t)),
+        }
+      : r,
+  );
+  persist(next);
+  return next;
+}
+
 /** 更新某批的备注。 */
 export function updateSessionNote(id: string, note: string): ReplaySessionRecord[] {
   const next = loadSessions().map((r) => (r.id === id ? { ...r, note: note.trim() || undefined } : r));
@@ -133,7 +147,7 @@ export function exportSessionCsv(rec: ReplaySessionRecord): void {
     'take-profit': '止盈',
     'replay-ended': '回放结束',
   };
-  const header = ['序号', '代码', '方向', '数量', '开仓价', '开仓时间', '平仓价', '平仓时间', '盈亏', '收益率(%)', 'R', '平仓原因'];
+  const header = ['序号', '代码', '方向', '数量', '开仓价', '开仓时间', '平仓价', '平仓时间', '盈亏', '收益率(%)', 'R', '平仓原因', '标签'];
   const p = (n: number) => String(n).padStart(2, '0');
   const fmt = (t: number) => {
     const d = new Date(t * 1000);
@@ -152,6 +166,7 @@ export function exportSessionCsv(rec: ReplaySessionRecord): void {
     t.returnPct.toFixed(2),
     t.rMultiple !== null ? t.rMultiple.toFixed(2) : '',
     REASON[t.exitReason] ?? t.exitReason,
+    (t.tags ?? []).join(' / '),
   ]);
   const csv =
     '\ufeff' +

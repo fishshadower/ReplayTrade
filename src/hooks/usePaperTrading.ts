@@ -239,6 +239,20 @@ export function usePaperTrading(symbol: string) {
     [sync],
   );
 
+  /** 编辑某笔已平仓成交的复盘标签（整体替换）。 */
+  const updateTradeTags = useCallback(
+    (tradeId: string, tags: string[]) => {
+      storeRef.current = {
+        ...storeRef.current,
+        history: storeRef.current.history.map((t) =>
+          t.id === tradeId ? { ...t, tags: tags.length > 0 ? tags : undefined } : t,
+        ),
+      };
+      sync();
+    },
+    [sync],
+  );
+
   /** 手动拖动修改持仓的止损/止盈，安全侧钳制后写回（多单 SL ≤ min(开仓,现价) 等）。 */
   const updatePositionLevels = useCallback(
     (id: string, levels: { stopLoss?: number | null; takeProfit?: number | null }) => {
@@ -351,6 +365,7 @@ export function usePaperTrading(symbol: string) {
     moveStopToEntry,
     updatePositionLevels,
     updateTradeNote,
+    updateTradeTags,
     archiveSession,
     processTick,
     updatePrice,
