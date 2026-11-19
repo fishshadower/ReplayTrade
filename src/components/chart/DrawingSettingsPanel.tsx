@@ -109,7 +109,7 @@ export function DrawingSettingsPanel({
     <div
       ref={rootRef}
       className="flex w-56 flex-col gap-2.5 rounded-md border border-bg-border bg-bg-panel/95 p-3 shadow-neo backdrop-blur-sm"
-      style={pos ? { position: 'fixed', left: pos.x, top: pos.y, zIndex: 45 } : undefined}
+      style={pos ? { position: 'fixed', left: pos.x, top: pos.y, zIndex: 61 } : undefined}
       onPointerDown={(e) => e.stopPropagation()}
       role="dialog"
       aria-label={`${TOOL_LABELS[drawing.type]} 设置`}

@@ -1078,15 +1078,28 @@ export function TradingChart({
       // Entry/exit markers, only for bars currently in the revealed series.
       const visibleTimes = new Set(visible.map((c) => c.time));
       for (const p of positions) {
-        if (!visibleTimes.has(p.openedAt)) continue;
-        markers.push({
-          time: toChartTime(p.openedAt),
-          position: p.direction === 'long' ? 'belowBar' : 'aboveBar',
-          color: p.direction === 'long' ? COLORS.up : COLORS.down,
-          shape: p.direction === 'long' ? 'arrowUp' : 'arrowDown',
-          text: p.direction === 'long' ? 'L' : 'S',
-          size: 1,
-        });
+        if (visibleTimes.has(p.openedAt)) {
+          markers.push({
+            time: toChartTime(p.openedAt),
+            position: p.direction === 'long' ? 'belowBar' : 'aboveBar',
+            color: p.direction === 'long' ? COLORS.up : COLORS.down,
+            shape: p.direction === 'long' ? 'arrowUp' : 'arrowDown',
+            text: p.direction === 'long' ? 'L' : 'S',
+            size: 1,
+          });
+        }
+        // 同向加仓点：同向小箭头标 +
+        for (const add of p.additions ?? []) {
+          if (!visibleTimes.has(add.time)) continue;
+          markers.push({
+            time: toChartTime(add.time),
+            position: p.direction === 'long' ? 'belowBar' : 'aboveBar',
+            color: p.direction === 'long' ? COLORS.up : COLORS.down,
+            shape: p.direction === 'long' ? 'arrowUp' : 'arrowDown',
+            text: '+',
+            size: 0.6,
+          });
+        }
       }
       for (const t of closedTrades ?? []) {
         // 进场标记（方向箭头），离场标记（X）——平仓后仍能看到进出两端
@@ -1148,7 +1161,7 @@ export function TradingChart({
             lineWidth: 1,
             lineStyle: LineStyle.Solid,
             axisLabelVisible: true,
-            title: '开仓',
+            title: `${p.direction === 'long' ? '多' : '空'}${(p.additions?.length ?? 0) > 0 ? '·均价' : ''}`,
           }),
         );
         if (p.stopLoss) {
@@ -1178,7 +1191,10 @@ export function TradingChart({
         priceLineRefs.current.set(p.id, newLines);
       } else if (lines) {
         // 已有线随最新值同步（拖动/改值后线跟手）
-        lines[0]?.applyOptions({ price: p.entryPrice, title: '开仓' });
+        lines[0]?.applyOptions({
+          price: p.entryPrice,
+          title: `${p.direction === 'long' ? '多' : '空'}${(p.additions?.length ?? 0) > 0 ? '·均价' : ''}`,
+        });
         let i = 1;
         if (typeof p.stopLoss === 'number' && p.stopLoss > 0) {
           lines[i]?.applyOptions({ price: p.stopLoss, title: 'SL' });

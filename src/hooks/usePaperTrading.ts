@@ -115,6 +115,38 @@ export function usePaperTrading(symbol: string) {
       const validation = validateOrder(draft, availableBalance(st));
       if (!validation.valid) return { ok: false, errors: validation.errors };
 
+      // 双向持仓：同向单合并加仓（加权均价，SL/TP 原值优先、原仓缺省时采纳新单），异向单独立新仓
+      const existing = storeRef.current.positions.find(
+        (p) => p.symbol === symbolRef.current && p.direction === draft.direction,
+      );
+      if (existing) {
+        const quantity = existing.quantity + draft.quantity;
+        const entryPrice =
+          (existing.entryPrice * existing.quantity + draft.entryPrice * draft.quantity) / quantity;
+        const merged: Position = {
+          ...existing,
+          quantity,
+          entryPrice,
+          remaining: existing.remaining + draft.quantity,
+          stopLoss: existing.stopLoss ?? draft.stopLoss ?? null,
+          takeProfit: existing.takeProfit ?? draft.takeProfit ?? null,
+          additions: [
+            ...(existing.additions ?? []),
+            {
+              time: openedAt ?? Math.floor(Date.now() / 1000),
+              price: draft.entryPrice,
+              quantity: draft.quantity,
+            },
+          ],
+        };
+        storeRef.current = {
+          ...storeRef.current,
+          positions: storeRef.current.positions.map((p) => (p.id === existing.id ? merged : p)),
+        };
+        sync();
+        return { ok: true, errors: [], position: merged };
+      }
+
       const position: Position = {
         id: nextId('pos'),
         symbol: symbolRef.current,

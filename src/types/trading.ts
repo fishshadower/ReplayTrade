@@ -13,6 +13,8 @@ export interface Position {
   openedAt: number;
   /** remaining open quantity (for partial closes) */
   remaining: number;
+  /** 同向加仓明细（合并后 entryPrice 为加权均价） */
+  additions?: { time: number; price: number; quantity: number }[];
 }
 
 export interface ClosedTrade {
@@ -31,6 +33,8 @@ export interface ClosedTrade {
   /** P&L expressed in units of risk (R), null when no SL */
   rMultiple: number | null;
   exitReason: ExitReason;
+  /** 同向加仓次数（0/缺省 = 一次性建仓） */
+  addCount?: number;
   openedAt: number;
   closedAt: number;
   /** 平仓后账户余额 */

@@ -241,6 +241,7 @@ export function closePosition(
     risk,
     rMultiple: rMultiple(pnl, risk),
     exitReason: reason,
+    addCount: position.additions?.length ?? 0,
     openedAt: position.openedAt,
     closedAt,
     exitStopLoss: position.stopLoss ?? null,

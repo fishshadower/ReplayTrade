@@ -224,7 +224,7 @@ export function DrawingToolbar({
     <div
       ref={rootRef}
       className="flex max-w-[calc(100vw-16px)] flex-row flex-wrap items-center gap-0.5 rounded-md border border-bg-border bg-bg-panel/95 p-1 shadow-neo backdrop-blur-sm"
-      style={pos ? { position: 'fixed', left: pos.x, top: pos.y, zIndex: 44 } : undefined}
+      style={pos ? { position: 'fixed', left: pos.x, top: pos.y, zIndex: 60 } : undefined}
       onPointerDown={(e) => e.stopPropagation()}
       role="toolbar"
       aria-label="绘图工具"

@@ -450,11 +450,17 @@ export default function App() {
       const openedAt = currentCandle ? currentCandle.time : undefined;
       const result = paper.openPosition(draft, openedAt);
       if (result.ok) {
+        const merged = (result.position?.additions?.length ?? 0) > 0;
         notify(
-          `${draft.direction === 'long' ? '买入' : '卖出'} ${draft.quantity} ${symbol} @ ${formatPrice(
-            draft.entryPrice,
-            decimals,
-          )} — 模拟单`,
+          merged
+            ? `加仓合并 ${draft.quantity} ${symbol} @ ${formatPrice(draft.entryPrice, decimals)} — 新均价 ${formatPrice(
+                result.position?.entryPrice ?? draft.entryPrice,
+                decimals,
+              )}`
+            : `${draft.direction === 'long' ? '买入' : '卖出'} ${draft.quantity} ${symbol} @ ${formatPrice(
+                draft.entryPrice,
+                decimals,
+              )} — 模拟单`,
           'success',
         );
         setOrderSheetOpen(false);
@@ -838,7 +844,12 @@ export default function App() {
                               >
                                 {p.direction === 'long' ? '多头' : '空头'}
                               </span>
-                              <span className="text-text-secondary">{p.remaining}</span>
+                              <span className="text-text-secondary">
+                                {p.remaining} @{' '}
+                                {(p.additions?.length ?? 0) > 0 ? '均价' : ''}
+                                {formatPrice(p.entryPrice, decimals)}
+                                {(p.additions?.length ?? 0) > 0 ? ` (+${p.additions?.length ?? 0})` : ''}
+                              </span>
                             </span>
                             <span className={`font-bold ${pnl >= 0 ? 'text-up' : 'text-down'}`}>
                               {formatCurrency(pnl)}

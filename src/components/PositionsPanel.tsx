@@ -72,7 +72,10 @@ export function PositionsPanel({
               </div>
             </div>
             <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-[12px]">
-              <Meta label="开仓" value={formatPrice(p.entryPrice, decimals)} />
+              <Meta
+                label={(p.additions?.length ?? 0) > 0 ? `均价·含加仓${p.additions?.length ?? 0}` : '开仓'}
+                value={formatPrice(p.entryPrice, decimals)}
+              />
               <Meta label="现价" value={formatPrice(currentPrice, decimals)} />
               <Meta label="数量" value={String(p.remaining)} />
               <Meta label="价值" value={formatCurrency(value)} />
