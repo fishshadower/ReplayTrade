@@ -675,9 +675,6 @@ export default function App() {
           setTimeframe(t);
           setActiveTab('positions');
         }}
-        balance={paper.state.balance}
-        startingBalance={paper.state.startingBalance}
-        totalPnl={paper.totalPnl}
         currentPrice={paper.currentPrice}
         decimals={decimals}
         source={market.source}
