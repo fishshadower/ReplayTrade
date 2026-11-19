@@ -691,7 +691,7 @@ export default function App() {
             <>
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-[12px] font-semibold uppercase tracking-wider text-text-muted">
-                  市场
+                  行情数据
                 </span>
                 <button
                   onClick={() => setLeftCollapsed(true)}
@@ -703,31 +703,14 @@ export default function App() {
                 </button>
               </div>
               <MarketSelector
-                symbol={symbol}
-                timeframe={timeframe}
-                onSymbolChange={setSymbol}
-                onTimeframeChange={setTimeframe}
                 loading={market.loading}
                 progress={market.progress}
                 error={market.error}
                 source={market.source}
                 range={market.range}
                 candleCount={market.candles.length}
-                canStartReplay={canStartReplay}
-                replayActive={replayActive}
-                onStartReplay={handleStartReplay}
                 onRetry={() => void market.load(symbol, timeframe)}
                 onUseDemo={() => market.useDemoData(symbol, timeframe)}
-                sourceOption={selectedSource}
-                availableSources={availableSourcesForSymbol}
-                onSourceChange={handleSourceChange}
-              />
-              <SessionMiniCard
-                balance={paper.state.balance}
-                equity={paper.equity}
-                available={paper.available}
-                unrealized={paper.unrealizedPnl}
-                positions={paper.state.positions.length}
               />
             </>
           )}
@@ -1104,37 +1087,6 @@ function AccountRow({
       <span className={tone === 'up' ? 'text-up' : tone === 'down' ? 'text-down' : 'text-text-primary'}>
         {value}
       </span>
-    </div>
-  );
-}
-
-function SessionMiniCard({
-  balance,
-  equity,
-  available,
-  unrealized,
-  positions,
-}: {
-  balance: number;
-  equity: number;
-  available: number;
-  unrealized: number;
-  positions: number;
-}) {
-  return (
-    <div className="mt-3 rounded-sm border border-bg-border bg-bg-panel p-2.5 font-mono text-[13px]">
-      <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wider text-text-muted">
-        账户
-      </div>
-      <AccountRow label="余额" value={formatCurrency(balance)} />
-      <AccountRow label="权益" value={formatCurrency(equity)} />
-      <AccountRow label="可用余额" value={formatCurrency(available)} />
-      <AccountRow
-        label="未实现盈亏"
-        value={formatCurrency(unrealized)}
-        tone={unrealized >= 0 ? 'up' : 'down'}
-      />
-      <AccountRow label="持仓数" value={String(positions)} />
     </div>
   );
 }

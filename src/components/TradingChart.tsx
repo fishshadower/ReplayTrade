@@ -906,6 +906,7 @@ export function TradingChart({
       engine.setTool('select');
     };
 
+    container.addEventListener('contextmenu', onContextMenu, true);
     container.addEventListener('pointerdown', onDown);
     container.addEventListener('pointermove', onMove);
     container.addEventListener('dblclick', onDblClick);
@@ -913,7 +914,7 @@ export function TradingChart({
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onCancel);
     return () => {
-      container.removeEventListener('contextmenu', onContextMenu);
+      container.removeEventListener('contextmenu', onContextMenu, true);
       container.removeEventListener('pointerdown', onDown);
       container.removeEventListener('pointermove', onMove);
       container.removeEventListener('dblclick', onDblClick);
