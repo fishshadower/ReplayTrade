@@ -30,7 +30,21 @@ export function TradePanel({
   onPlaceOrder,
 }: TradePanelProps) {
   const [direction, setDirection] = useState<Direction>('long');
-  const [quantityStr, setQuantityStr] = useState('1');
+  const [quantityStr, setQuantityStr] = useState<string>(() => {
+    try {
+      return localStorage.getItem('replaytrade:qty') ?? '0.1';
+    } catch {
+      return '0.1';
+    }
+  });
+  const setQty = (v: string): void => {
+    setQuantityStr(v);
+    try {
+      localStorage.setItem('replaytrade:qty', v);
+    } catch {
+      /* ignore */
+    }
+  };
   const [entryStr, setEntryStr] = useState('');
   const [slStr, setSlStr] = useState('');
   const [tpStr, setTpStr] = useState('');
@@ -176,6 +190,14 @@ export function TradePanel({
           <label htmlFor="tp-qty" className={labelCls}>
             数量
           </label>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {['0.1', '0.2', '0.3', '1', '2', '3'].map((q) => (
+              <QuickBtn key={q} onClick={() => setQty(q)} disabled={disabled}>
+                {q}
+              </QuickBtn>
+            ))}
+          </div>
+          <div className="h-1.5" />
           <input
             id="tp-qty"
             type="number"
@@ -183,7 +205,7 @@ export function TradePanel({
             min={0}
             step="any"
             value={quantityStr}
-            onChange={(e) => setQuantityStr(e.target.value)}
+            onChange={(e) => setQty(e.target.value)}
             className={inputCls(submitted && draft.quantity <= 0)}
             placeholder="0.0"
             aria-label="数量"

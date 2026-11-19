@@ -1193,9 +1193,10 @@ export function TradingChart({
   }, [currentPrice, positions, decimals]);
 
   const hovered = hover ?? visible[visible.length - 1];
-  const prev = visible[visible.length - 2];
-  const prevClose = prev ? prev.close : hovered?.open ?? 0;
-  const change = hovered && prevClose ? ((hovered.close - prevClose) / prevClose) * 100 : 0;
+  // 本根 K 线自身涨跌（vs 开盘，TradingView 图例口径）：点数 + 幅度
+  const barOpen = hovered?.open ?? 0;
+  const barChange = hovered ? hovered.close - barOpen : 0;
+  const barChangePct = barOpen > 0 ? (barChange / barOpen) * 100 : 0;
 
   // Indicator values at the hovered bar (TradingView legend parity). The SMA/EMA
   // arrays are recomputed only when the revealed slice changes (not on every
@@ -1471,11 +1472,7 @@ export function TradingChart({
             </span>
             <span>
               <span className="text-text-muted">收</span>{' '}
-              <span
-                className={
-                  hovered.close >= prevClose ? 'text-up' : 'text-down'
-                }
-              >
+              <span className={barChange >= 0 ? 'text-up' : 'text-down'}>
                 {formatPrice(hovered.close, decimals)}
               </span>
             </span>
@@ -1484,9 +1481,12 @@ export function TradingChart({
               <span className="text-text-primary">{formatVolume(hovered.volume)}</span>
             </span>
             <span className="text-text-muted">{formatCandleDate(hovered.time, timeframe)}</span>
-            {change !== 0 && prevClose > 0 && (
-              <span className={change >= 0 ? 'text-up' : 'text-down'}>
-                {change >= 0 ? '▲' : '▼'} {Math.abs(change).toFixed(2)}%
+            {hovered && (
+              <span className={barChange >= 0 ? 'text-up' : 'text-down'}>
+                {barChange >= 0 ? '▲' : '▼'}
+                {' '}{barChange >= 0 ? '+' : '-'}
+                {Math.abs(barChange).toFixed(decimals)} ({barChange >= 0 ? '+' : ''}
+                {barChangePct.toFixed(2)}%)
               </span>
             )}
           </div>
