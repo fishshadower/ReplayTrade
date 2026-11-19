@@ -51,6 +51,8 @@ import {
 } from './utils/sessionStore';
 import type { ReplaySessionRecord } from './utils/sessionStore';
 import { ReplaySessionsPanel } from './components/ReplaySessionsPanel';
+import { loadIndicatorConfigs, saveIndicatorConfigs } from './indicators/config';
+import type { IndicatorConfigs } from './indicators/config';
 
 const STORAGE_SYMBOL = 'replaytrade:symbol';
 const STORAGE_TF = 'replaytrade:timeframe';
@@ -108,8 +110,11 @@ export default function App() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [equitySeries, setEquitySeries] = useState<number[]>([]);
   const [sessions, setSessions] = useState<ReplaySessionRecord[]>(() => loadSessions());
-  const [showIndicators, setShowIndicators] = useState(true);
-  const [showVolume, setShowVolume] = useState(true);
+  const [indicators, setIndicators] = useState<IndicatorConfigs>(() => loadIndicatorConfigs());
+  const handleUpdateIndicators = useCallback((next: IndicatorConfigs) => {
+    setIndicators(next);
+    saveIndicatorConfigs(next);
+  }, []);
   const [invertPriceScale, setInvertPriceScale] = useState(false);
   const [focusTime, setFocusTime] = useState(0);
   const [onboarded, setOnboarded] = useState<boolean>(() => isOnboarded());
@@ -582,8 +587,8 @@ export default function App() {
         isPlaying={replay.state.isPlaying}
         autoFollow={replay.autoFollow}
         followSignal={replay.followSignal}
-        showIndicators={showIndicators}
-        showVolume={showVolume}
+        indicators={indicators}
+        onUpdateIndicator={handleUpdateIndicators}
         invertPriceScale={invertPriceScale}
         onUpdatePositionLevels={paper.updatePositionLevels}
         focusTimeSignal={focusTime}
@@ -952,10 +957,6 @@ export default function App() {
               replay={replay.state}
               balanceSetting={balanceSetting}
               onBalanceChange={setBalanceSetting}
-              showIndicators={showIndicators}
-              onToggleIndicators={() => setShowIndicators((v) => !v)}
-              showVolume={showVolume}
-              onToggleVolume={() => setShowVolume((v) => !v)}
               oandaToken={oandaToken}
               oandaEnv={oandaEnv}
               onOandaTokenChange={handleOandaTokenChange}
@@ -1242,10 +1243,6 @@ function SessionDetails({
   replay,
   balanceSetting,
   onBalanceChange,
-  showIndicators,
-  onToggleIndicators,
-  showVolume,
-  onToggleVolume,
   oandaToken,
   oandaEnv,
   onOandaTokenChange,
@@ -1260,10 +1257,6 @@ function SessionDetails({
   replay: ReplayState;
   balanceSetting: number;
   onBalanceChange: (v: number) => void;
-  showIndicators: boolean;
-  onToggleIndicators: () => void;
-  showVolume: boolean;
-  onToggleVolume: () => void;
   oandaToken: string;
   oandaEnv: 'practice' | 'live';
   onOandaTokenChange: (v: string) => void;
@@ -1377,22 +1370,6 @@ function SessionDetails({
           <p className="mt-1.5 text-[12px] leading-snug text-text-muted">
             令牌仅保存在本地浏览器，保存后若当前选中 XAU/USD 会自动重载图表。
           </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={onToggleIndicators}
-            aria-pressed={showIndicators}
-            className="rounded-sm border border-bg-border bg-bg-elevated px-3 py-1.5 text-[13px] font-semibold text-text-primary transition-colors hover:border-accent"
-          >
-            {showIndicators ? '隐藏 SMA/EMA 均线' : '显示 SMA/EMA 均线'}
-          </button>
-          <button
-            onClick={onToggleVolume}
-            aria-pressed={showVolume}
-            className="rounded-sm border border-bg-border bg-bg-elevated px-3 py-1.5 text-[13px] font-semibold text-text-primary transition-colors hover:border-accent"
-          >
-            {showVolume ? '隐藏成交量' : '显示成交量'}
-          </button>
         </div>
       </div>
     </div>
