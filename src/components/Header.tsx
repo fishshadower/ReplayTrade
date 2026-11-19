@@ -10,7 +10,6 @@ interface HeaderProps {
   onSymbolChange: (s: string) => void;
   onTimeframeChange: (t: Timeframe) => void;
   balance: number;
-  startingBalance: number;
   totalPnl: number;
   currentPrice: number;
   decimals: number;
@@ -38,7 +37,6 @@ export function Header({
   onSymbolChange,
   onTimeframeChange,
   balance,
-  startingBalance,
   totalPnl,
   currentPrice,
   decimals,
@@ -59,8 +57,7 @@ export function Header({
   onShowHelp,
   onTakeScreenshot,
 }: HeaderProps) {
-  const pnlPositive = totalPnl >= 0;
-
+  
   return (
     <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-bg-border bg-bg-panel px-3 py-2">
       <div className="flex items-center gap-2">
