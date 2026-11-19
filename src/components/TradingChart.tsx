@@ -1,4 +1,5 @@
 import {
+  AreaSeries,
   CandlestickSeries,
   ColorType,
   CrosshairMode,
@@ -35,7 +36,14 @@ import { nearestIndexByTime, formatCandleDate, formatISODateTime } from '../util
 import { formatPrice, formatVolume } from '../utils/tradingCalculations';
 import { DrawingToolbar } from './chart/DrawingToolbar';
 import { DrawingSettingsPanel } from './chart/DrawingSettingsPanel';
-import { ArrowRightToLine, CalendarSearch, ScanSearch, X } from 'lucide-react';
+import {
+  ArrowRightToLine,
+  CalendarSearch,
+  CandlestickChart,
+  LineChart,
+  ScanSearch,
+  X,
+} from 'lucide-react';
 
 interface TradingChartProps {
   candles: Candle[];
@@ -163,6 +171,8 @@ export function TradingChart({
   const currentPriceLineRef = useRef<IPriceLine | null>(null);
   const priceLineRefs = useRef<Map<string, IPriceLine[]>>(new Map());
   const markersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
+  const areaSeriesRef = useRef<ISeriesApi<'Area'> | null>(null);
+  const markersAreaRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
   const lastCountRef = useRef<number>(0);
   const lastDataKeyRef = useRef<string>('');
   const lastWindowStartRef = useRef<number | null>(null);
@@ -177,6 +187,8 @@ export function TradingChart({
 
   const [hover, setHover] = useState<Candle | null>(null);
   const [tool, setTool] = useState<DrawingTool>('select');
+  const toolRef = useRef(tool);
+  toolRef.current = tool;
   const [magnetMode, setMagnetMode] = useState<MagnetMode>('off');
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
@@ -186,6 +198,7 @@ export function TradingChart({
   const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null);
   const [awayFromEdge, setAwayFromEdge] = useState(false);
   const [gotoOpen, setGotoOpen] = useState(false);
+  const [chartType, setChartType] = useState<'candles' | 'area'>('candles');
   const [gotoValue, setGotoValue] = useState('');
   const drawingEngineRef = useRef<DrawingEngine | null>(null);
   const drawingActiveRef = useRef(false);
@@ -318,8 +331,9 @@ export function TradingChart({
         const grew = n > drawingsCountRef.current;
         drawingsCountRef.current = n;
         setDrawingsCount(n);
-        // 画完一个新图形后自动切回选择/移动工具（TradingView 习惯），图形保留可编辑
-        if (grew && drawingActiveRef.current) {
+        // 画完一个新图形后自动切回选择/移动工具（TradingView 习惯），图形保留可编辑。
+        // 例外：自由画笔连续绘制，右键才退出。
+        if (grew && drawingActiveRef.current && toolRef.current !== 'path') {
           setTool('select');
           drawingEngine.setTool('select');
         }
@@ -335,6 +349,19 @@ export function TradingChart({
         setCanRedo(redoable);
       },
     });
+
+    const areaSeries = chart.addSeries(AreaSeries, {
+      lineColor: COLORS.accent,
+      topColor: 'rgba(79, 140, 255, 0.28)',
+      bottomColor: 'rgba(79, 140, 255, 0.02)',
+      lineWidth: 2,
+      visible: false,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      priceFormat: { type: 'price', precision: decimals, minMove: 1 / 10 ** decimals },
+    });
+    areaSeriesRef.current = areaSeries;
+    markersAreaRef.current = createSeriesMarkers(areaSeries, []);
 
     const volumeSeries = chart.addSeries(HistogramSeries, {
       priceFormat: { type: 'volume' },
@@ -436,6 +463,8 @@ export function TradingChart({
       chartRef.current = null;
       onChartReady?.(null);
       candleSeriesRef.current = null;
+      areaSeriesRef.current = null;
+      markersAreaRef.current = null;
       volumeSeriesRef.current = null;
       smaSeriesRef.current = null;
       emaSeriesRef.current = null;
@@ -489,6 +518,12 @@ export function TradingChart({
     fitPriceScaleToCandles(cs.priceScale(), visible.slice(Math.max(0, Math.floor(lr.from))));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invertPriceScale]);
+
+  // 图表形态切换：蜡烛 ↔ 面积图（两套 series 平行喂数据，切 visible）
+  useEffect(() => {
+    candleSeriesRef.current?.applyOptions({ visible: chartType === 'candles' });
+    areaSeriesRef.current?.applyOptions({ visible: chartType === 'area' });
+  }, [chartType]);
 
   // 外部请求跳转（点击历史成交时间）：视图落到对应 K 线并适配价格
   useEffect(() => {
@@ -550,6 +585,7 @@ export function TradingChart({
         value: last.volume,
         color: last.close >= last.open ? COLORS.volumeUp : COLORS.volumeDown,
       } as HistogramData);
+      areaSeriesRef.current?.update({ time: toChartTime(last.time), value: last.close });
       // Replay autoscale: when the newly revealed candle breaks out of the
       // current price range, refit so it stays in view (like TradingView).
       // Backs off once the user has manually panned/zoomed the price scale.
@@ -577,6 +613,9 @@ export function TradingChart({
           value: k.volume,
           color: k.close >= k.open ? COLORS.volumeUp : COLORS.volumeDown,
         })) as HistogramData[],
+      );
+      areaSeriesRef.current?.setData(
+        visible.map((k) => ({ time: toChartTime(k.time), value: k.close })),
       );
       if (dataChanged) {
         // New dataset / timeframe / symbol: land on the latest bars like TradingView.
@@ -1008,6 +1047,7 @@ export function TradingChart({
       }
     }
     plugin.setMarkers(markers);
+    markersAreaRef.current?.setMarkers(markers);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSelecting, selectedIndex, replayActive, replayStartIndex, candles, visible, positions, closedTrades]);
 
@@ -1170,6 +1210,16 @@ export function TradingChart({
       </div>
       {/* Top-right chart tools: go-to-time + price-scale reset (TradingView parity). */}
       <div className="absolute right-2 top-2 z-20 flex flex-col gap-1">
+        <button
+          type="button"
+          title={chartType === 'candles' ? '切换为面积图' : '切换为蜡烛图'}
+          aria-label="切换图表形态"
+          aria-pressed={chartType === 'area'}
+          onClick={() => setChartType((t) => (t === 'candles' ? 'area' : 'candles'))}
+          className="flex h-7 w-7 items-center justify-center rounded-sm border border-bg-border bg-bg-panel/95 text-text-secondary shadow-neo-sm transition-colors hover:border-accent hover:text-text-primary"
+        >
+          {chartType === 'candles' ? <CandlestickChart size={16} /> : <LineChart size={16} />}
+        </button>
         <button
           type="button"
           title="跳转到时间 (Alt+G)"
