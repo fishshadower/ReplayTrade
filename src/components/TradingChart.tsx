@@ -224,6 +224,7 @@ export function TradingChart({
   positionsRef.current = positions;
   const updateLevelsRef = useRef(onUpdatePositionLevels);
   updateLevelsRef.current = onUpdatePositionLevels;
+  const [hoverLevel, setHoverLevel] = useState<{ id: string; kind: 'stop' | 'take'; y: number } | null>(null);
   const draggingLevelRef = useRef<{
     id: string;
     kind: 'stop' | 'take' | 'entry';
@@ -846,6 +847,7 @@ export function TradingChart({
 
     const onDown = (e: PointerEvent): void => {
       if (e.button !== 0) return;
+      if ((e.target as HTMLElement).closest?.('[data-level-del]')) return;
       const [x, y] = getPos(e);
       // SL/TP 线命中优先：进入拖拽，不进画图引擎
       const hit = hitTestLevel(y);
@@ -902,11 +904,21 @@ export function TradingChart({
         return;
       }
       if (!drawingActiveRef.current && !engine.isDragging()) {
-        if (hitTestLevel(y)) {
+        const hover = hitTestLevel(y);
+        if (hover) {
           container.style.cursor = 'ns-resize';
+          setHoverLevel((prev) => {
+            const next =
+              hover.kind === 'entry' ? null : { id: hover.id, kind: hover.kind, y };
+            if (prev && next && prev.id === next.id && prev.kind === next.kind && Math.abs(prev.y - next.y) < 0.5) {
+              return prev;
+            }
+            return next;
+          });
           return;
         }
       }
+      setHoverLevel((prev) => (prev === null ? prev : null));
       const start = panStartRef.current;
       if (start) {
         const dx = x - start[0];
@@ -1111,7 +1123,7 @@ export function TradingChart({
     const cs = candleSeriesRef.current;
     currentPriceLineRef.current?.applyOptions({
       price: currentPrice,
-      title: formatPrice(currentPrice, decimals),
+      title: '',
     });
 
     const currentIds = new Set(positions.map((p) => p.id));
@@ -1274,6 +1286,28 @@ export function TradingChart({
           />
         )}
       </div>
+      {/* SL/TP 线删除按钮：悬停线时浮出（交易所式） */}
+      {hoverLevel && (
+        <button
+          type="button"
+          data-level-del
+          title={hoverLevel.kind === 'stop' ? '删除止损线' : '删除止盈线'}
+          aria-label="删除该线"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => {
+            updateLevelsRef.current?.(
+              hoverLevel.id,
+              hoverLevel.kind === 'stop' ? { stopLoss: null } : { takeProfit: null },
+            );
+            setHoverLevel(null);
+          }}
+          className="absolute right-[72px] z-30 flex h-5 w-5 items-center justify-center rounded-sm border border-down/60 bg-bg-panel text-down shadow-neo-sm transition-colors hover:bg-down hover:text-white"
+          style={{ top: Math.max(6, hoverLevel.y - 10) }}
+        >
+          <X size={11} />
+        </button>
+      )}
+
       {/* Top-right chart tools: go-to-time + price-scale reset (TradingView parity). */}
       <div className="absolute right-2 top-2 z-20 flex flex-col gap-1">
         <button

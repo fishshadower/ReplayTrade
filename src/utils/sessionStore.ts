@@ -147,7 +147,7 @@ export function exportSessionCsv(rec: ReplaySessionRecord): void {
     'take-profit': '止盈',
     'replay-ended': '回放结束',
   };
-  const header = ['序号', '代码', '方向', '数量', '开仓价', '开仓时间', '平仓价', '平仓时间', '盈亏', '收益率(%)', 'R', '平仓原因', '标签'];
+  const header = ['序号', '代码', '方向', '数量', '开仓价', '开仓时间', '平仓价', '平仓时间', '盈亏', '收益率(%)', 'R', '平仓原因', '余额', '止损价', '止盈价', '标签', '备注'];
   const p = (n: number) => String(n).padStart(2, '0');
   const fmt = (t: number) => {
     const d = new Date(t * 1000);
@@ -166,7 +166,11 @@ export function exportSessionCsv(rec: ReplaySessionRecord): void {
     t.returnPct.toFixed(2),
     t.rMultiple !== null ? t.rMultiple.toFixed(2) : '',
     REASON[t.exitReason] ?? t.exitReason,
+    t.balanceAfter !== undefined ? t.balanceAfter.toFixed(2) : '',
+    t.exitStopLoss != null ? String(t.exitStopLoss) : '',
+    t.exitTakeProfit != null ? String(t.exitTakeProfit) : '',
     (t.tags ?? []).join(' / '),
+    t.note ?? '',
   ]);
   const csv =
     '\ufeff' +
