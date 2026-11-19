@@ -145,11 +145,16 @@ export function loadIndicatorInstances(): IndicatorInstance[] {
   }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [createInstance('sma', []), createInstance('ema', [{} as IndicatorInstance]), { ...createInstance('volume', []) }];
+    if (raw) {
+      const v = JSON.parse(raw) as IndicatorInstance[];
+      if (Array.isArray(v) && v.length > 0) {
+        return v.filter((i) => i && typeof i.id === 'string' && typeof i.type === 'string');
+      }
+    }
   } catch {
-    /* fallthrough */
+    /* 损坏数据回退默认 */
   }
-  return [createInstance('sma', []), createInstance('ema', [{} as IndicatorInstance]), { ...createInstance('volume', []) }];
+  return [createInstance('sma', []), createInstance('ema', [{} as IndicatorInstance]), createInstance('volume', [])];
 }
 
 export function saveIndicatorInstances(list: IndicatorInstance[]): void {
