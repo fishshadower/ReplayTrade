@@ -7,6 +7,7 @@ import { FibRetracementTool } from './FibRetracementTool';
 import { HorizontalLineTool } from './HorizontalLineTool';
 import { LongPositionTool } from './LongPositionTool';
 import { MeasureTool } from './MeasureTool';
+import { PathArrowTool } from './PathArrowTool';
 import { PathTool } from './PathTool';
 import { PolygonTool } from './PolygonTool';
 import { RayTool } from './RayTool';
@@ -32,6 +33,7 @@ const TOOL_DEFS: Record<string, ToolDef> = {
   polygon: PolygonTool,
   path: PathTool,
   arrow: ArrowTool,
+  pathArrow: PathArrowTool,
   text: TextTool,
   longPosition: LongPositionTool,
   shortPosition: ShortPositionTool,
