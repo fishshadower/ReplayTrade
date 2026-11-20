@@ -953,7 +953,8 @@ export function TradingChart({
     const onContextMenu = (e: MouseEvent): void => {
       e.preventDefault();
       if (drawingActiveRef.current || engine.isDragging()) {
-        engine.cancel();
+        // 右键 = 完成当前多点/自由画笔绘制（图形保存），其余（拖一半的）才丢弃
+        if (!engine.finishDraft()) engine.cancel();
       }
       setTool('select');
       engine.setTool('select');
