@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { X , RefreshCw } from 'lucide-react';
 import type { Direction } from '../types/trading';
 import type { OrderDraft } from '../types/trading';
