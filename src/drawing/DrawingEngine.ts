@@ -681,6 +681,14 @@ export class DrawingEngine implements ISeriesPrimitive<Time> {
     if (!pt) return;
     const model = this.toolModel(this.tool as DrawingType);
     const keepCollecting = model === 'multipoint' || model === 'freehand';
+    if (this.draft && this.draft.type === this.tool && model === 'drag') {
+      // TV 式：draft 已有首点，第二次点击固定第二点并完成
+      this.updateDraft(x, y, shiftKey);
+      this.draft.moved = true;
+      this.commitDraft();
+      this.finishPointer(true);
+      return;
+    }
     if (this.draft && keepCollecting && this.draft.type === this.tool) {
       this.draft.points.push(pt);
       this.draft.moved = false;
@@ -709,7 +717,7 @@ export class DrawingEngine implements ISeriesPrimitive<Time> {
     this.notify();
   }
 
-  onPointerMove(x: number, y: number, shiftKey?: boolean): void {
+  onPointerMove(x: number, y: number, shiftKey?: boolean, pressed?: boolean): void {
     if (!this.mapper.hasData()) return;
     if (this.interaction && this.selectedId) {
       if (shiftKey !== undefined) {
@@ -727,7 +735,7 @@ export class DrawingEngine implements ISeriesPrimitive<Time> {
       return;
     }
     if (this.draft) {
-      this.updateDraft(x, y, shiftKey);
+      this.updateDraft(x, y, shiftKey, pressed);
       if (this.pendingSnap) {
         this.hoverX = this.pendingSnap.x;
         this.hoverY = this.pendingSnap.y;
@@ -776,8 +784,8 @@ export class DrawingEngine implements ISeriesPrimitive<Time> {
       const model = this.toolModel(this.draft.type);
       if (model === 'drag') {
         if (this.draft.moved) this.commitDraft();
-        else this.cancelDraft();
-        this.finishPointer(true);
+        // TV 式：plain click 保留 draft，落点跟随鼠标，等待第二次点击/拖动完成
+        this.finishPointer(this.draft.moved);
         return;
       }
       if (model === 'click') {
@@ -884,7 +892,7 @@ export class DrawingEngine implements ISeriesPrimitive<Time> {
     return def?.model ?? 'drag';
   }
 
-  private updateDraft(x: number, y: number, shiftKey?: boolean): void {
+  private updateDraft(x: number, y: number, shiftKey?: boolean, pressed?: boolean): void {
     if (!this.draft) return;
     const model = this.toolModel(this.draft.type);
     const pt = this.snapAndClamp(x, y);
@@ -932,7 +940,8 @@ export class DrawingEngine implements ISeriesPrimitive<Time> {
       }
       case 'multipoint':
         if (this.draft.points.length === 0) this.draft.points.push(pt);
-        this.draft.points[this.draft.points.length - 1] = pt;
+        // hover（未按下）不动已落的点，只由渲染层画 last→鼠标 的预览虚线
+        if (pressed ?? true) this.draft.points[this.draft.points.length - 1] = pt;
         break;
       case 'freehand': {
         const last = this.draft.points[this.draft.points.length - 1];
@@ -1357,7 +1366,7 @@ export class DrawingEngine implements ISeriesPrimitive<Time> {
           updatedAt: 0,
           layerIndex: 0,
         };
-        this.renderer.renderDraft(env, draftDrawing, opts);
+        this.renderer.renderDraft(env, draftDrawing, opts, this.hoverX, this.hoverY);
       }
     }
     if (this.isDrawingToolActive() && this.hoverX !== null && this.hoverY !== null) {

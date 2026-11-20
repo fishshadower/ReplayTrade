@@ -130,8 +130,39 @@ export class DrawingRenderer {
   }
 
   /** Draft preview — dashed, plus anchor handles. */
-  renderDraft(env: RenderEnv, d: Drawing, opts: RenderOptions): void {
+  renderDraft(
+    env: RenderEnv,
+    d: Drawing,
+    opts: RenderOptions,
+    hoverX?: number | null,
+    hoverY?: number | null,
+  ): void {
     this.renderOne(env, d, { ...opts, isDraft: true, isSelected: true, isHovered: false });
+
+    // 多点工具（箭头折线/多边形等）：最后落点 → 鼠标 的预览虚线
+    if (
+      hoverX !== null &&
+      hoverX !== undefined &&
+      hoverY !== null &&
+      hoverY !== undefined &&
+      (d.type === 'pathArrow' || d.type === 'path' || d.type === 'triangle' || d.type === 'polygon') &&
+      d.points.length > 0
+    ) {
+      const last = d.points[d.points.length - 1];
+      const s = last ? this.mapper.chartPointToScreen(last) : null;
+      if (s) {
+        const ctx = env.ctx;
+        ctx.save();
+        ctx.strokeStyle = hexToRgba(d.style.strokeColor, 0.55);
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(hoverX, hoverY);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
   }
 
   renderSnapIndicator(env: RenderEnv, x: number, y: number, target: SnapTarget): void {

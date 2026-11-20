@@ -929,7 +929,7 @@ export function TradingChart({
         }
         if (dx * dx + dy * dy > 12) panStartRef.current = null;
       }
-      engine.onPointerMove(x, y, e.shiftKey);
+      engine.onPointerMove(x, y, e.shiftKey, e.buttons === 1);
     };
     const onUp = (): void => {
       draggingLevelRef.current = null;
