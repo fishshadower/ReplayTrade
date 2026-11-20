@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { X , RefreshCw } from 'lucide-react';
 import type { Direction } from '../types/trading';
 import type { OrderDraft } from '../types/trading';
 import { formatCurrency, formatPrice, orderPreview, validateOrder } from '../utils/tradingCalculations';
@@ -46,6 +46,7 @@ export function TradePanel({
     }
   };
   const [entryStr, setEntryStr] = useState('');
+  const [followEntry, setFollowEntry] = useState(true);
   const [slStr, setSlStr] = useState('');
   const [tpStr, setTpStr] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -53,13 +54,12 @@ export function TradePanel({
 
   // Once the user edits the entry price, stop auto-following the live price so
   // replay ticks never overwrite what they typed.
-  const entryTouched = useRef(false);
   useEffect(() => {
-    entryTouched.current = false;
+    setFollowEntry(true);
   }, [symbol]);
 
   useEffect(() => {
-    if (entryTouched.current) return;
+    if (!followEntry) return;
     if (currentPrice > 0) {
       setEntryStr(currentPrice.toFixed(decimals));
     }
@@ -210,19 +210,37 @@ export function TradePanel({
         </div>
         <div>
           <label htmlFor="tp-entry" className={labelCls}>
-            开仓价
+            <span className="flex items-center gap-1">
+              开仓价
+              <button
+                type="button"
+                title={followEntry ? '跟随当前价（市价）· 已开启' : '点击跟随当前价（市价）'}
+                aria-label="跟随当前价"
+                onClick={() => {
+                  setFollowEntry(true);
+                  if (currentPrice > 0) setEntryStr(currentPrice.toFixed(decimals));
+                }}
+                className={`flex h-4 w-4 items-center justify-center rounded-sm transition-colors ${
+                  followEntry
+                    ? 'text-accent'
+                    : 'text-text-muted hover:bg-bg-hover hover:text-text-primary'
+                }`}
+              >
+                <RefreshCw size={11} />
+              </button>
+            </span>
           </label>
           <ClearableInput
             id="tp-entry"
             value={entryStr}
             onChange={(v) => {
-              entryTouched.current = true;
+              setFollowEntry(false);
               setEntryStr(v);
             }}
             className={inputCls(submitted && draft.entryPrice <= 0)}
             ariaLabel="开仓价"
             onClear={() => {
-              entryTouched.current = true;
+              setFollowEntry(false);
               setEntryStr('');
             }}
           />

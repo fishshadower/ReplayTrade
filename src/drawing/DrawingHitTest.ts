@@ -225,7 +225,8 @@ export class DrawingHitTester {
         if (pts.length < 3) return false;
         return distToPolygon(x, y, pts) <= LINE_HIT_TOLERANCE;
       }
-      case 'path': {
+      case 'path':
+      case 'pathArrow': {
         if (pts.length < 2) return false;
         return distToPolyline(x, y, pts) <= LINE_HIT_TOLERANCE;
       }

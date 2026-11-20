@@ -20,6 +20,7 @@ export type DrawingType =
   | 'polygon'
   | 'path'
   | 'arrow'
+  | 'pathArrow'
   | 'text'
   | 'longPosition'
   | 'shortPosition'
@@ -177,6 +178,7 @@ export const TOOL_LABELS: Record<ToolId, string> = {
   polygon: '多边形',
   path: '自由画笔',
   arrow: '箭头',
+  pathArrow: '箭头折线',
   text: '文本',
   longPosition: '多头仓位',
   shortPosition: '空头仓位',
@@ -191,6 +193,7 @@ export const TOOL_SHORTCUTS: Partial<Record<ToolId, string>> = {
   verticalLine: 'L',
   rectangle: 'R',
   arrow: 'A',
+  pathArrow: '»',
   text: 'X',
   path: 'P',
 };
@@ -211,6 +214,7 @@ export const INTERACTION_MODEL: Record<DrawingType, InteractionModel> = {
   polygon: 'multipoint',
   path: 'freehand',
   arrow: 'drag',
+  pathArrow: 'multipoint',
   text: 'click',
   longPosition: 'multipoint',
   shortPosition: 'multipoint',
@@ -232,6 +236,7 @@ export const MIN_POINTS: Record<DrawingType, number> = {
   polygon: 3,
   path: 2,
   arrow: 2,
+  pathArrow: 2,
   text: 1,
   longPosition: 1,
   shortPosition: 1,

@@ -24,6 +24,7 @@ import {
   TrendingUp,
   Type,
   Undo2,
+  Spline,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { ReactNode } from 'react';
@@ -75,6 +76,7 @@ const GROUPS: ToolbarGroup[] = [
     icon: <PenTool size={16} />,
     items: [
       { id: 'arrow', icon: <ArrowUpRight size={16} />, label: '箭头', shortcut: 'A' },
+      { id: 'pathArrow', icon: <Spline size={16} />, label: '箭头折线', shortcut: 'W' },
       { id: 'text', icon: <Type size={16} />, label: '文本', shortcut: 'X' },
       { id: 'fibRetracement', icon: <Percent size={16} />, label: '斐波那契回撤' },
     ],
@@ -188,12 +190,11 @@ export function DrawingToolbar({
   }
   const PRIMARY: ToolbarItem['id'][] = [
     'select',
+    'rectangle',
     'trendLine',
     'horizontalLine',
-    'fibRetracement',
     'longPosition',
     'shortPosition',
-    'riskReward',
     'path',
     'measure',
   ];

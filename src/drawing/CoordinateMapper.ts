@@ -41,8 +41,18 @@ export class CoordinateMapper {
     if (direct !== null) return direct;
     const L = this.timeToLogical(time);
     if (L === null) return null;
-    const coord = this.chart.timeScale().logicalToCoordinate(L as Logical);
+    const ts = this.chart.timeScale();
+    const coord = ts.logicalToCoordinate(L as Logical);
     if (coord !== null) return coord;
+    // 数据范围外的 logical（右侧空白/未 reveal 区）：按可见范围 + barSpacing 线性外推，
+    // 否则点被甩到 offscreen(1e7) 导致整张图"消失"，等 K 线 reveal 才出现。
+    const range = ts.getVisibleLogicalRange();
+    if (range) {
+      const bs = ts.options().barSpacing;
+      const anchor = L >= range.from ? range.from : range.to;
+      const x0 = ts.logicalToCoordinate(anchor as Logical);
+      if (x0 !== null && bs > 0) return x0 + (L - anchor) * bs;
+    }
     // Off the right/left of the visible range entirely.
     const n = this.times.length;
     if (n === 0) return null;

@@ -38,6 +38,7 @@ const VALID_TYPES = new Set<DrawingType>([
   'polygon',
   'path',
   'arrow',
+  'pathArrow',
   'text',
   'longPosition',
   'shortPosition',

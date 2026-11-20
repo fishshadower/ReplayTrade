@@ -236,6 +236,9 @@ export class DrawingRenderer {
       case 'arrow':
         this.renderArrow(env, d, lineWidth, isDraft);
         break;
+      case 'pathArrow':
+        this.renderPathArrow(env, d, lineWidth, isDraft);
+        break;
       case 'text':
         this.renderText(env, d);
         break;
@@ -482,6 +485,34 @@ export class DrawingRenderer {
     setStroke(ctx, d.style, width, isDraft ? 0.6 : 1);
     ctx.stroke();
     ctx.setLineDash([]);
+  }
+
+  /** 折线箭头：多点转折 + 末端实心箭头（TV 的 path arrow）。 */
+  private renderPathArrow(env: RenderEnv, d: Drawing, width: number, isDraft: boolean): void {
+    const pts = d.points.map((p) => this.screenOf(p));
+    if (pts.length < 2 || pts.some((p) => p === null)) return;
+    const ctx = env.ctx;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(pts[0]!.x, pts[0]!.y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i]!.x, pts[i]!.y);
+    ctx.strokeStyle = isDraft ? hexToRgba(d.style.strokeColor, 0.6) : d.style.strokeColor;
+    ctx.lineWidth = width;
+    ctx.stroke();
+    ctx.restore();
+    // 末端箭头：取最后两点方向
+    const a = pts[pts.length - 2]!;
+    const b = pts[pts.length - 1]!;
+    const size = d.data?.arrowheadSize ?? 10;
+    const ang = Math.atan2(b.y - a.y, b.x - a.x);
+    const head = size * (d.style.strokeWidth / 1.5 + 0.4);
+    ctx.beginPath();
+    ctx.moveTo(b.x, b.y);
+    ctx.lineTo(b.x - head * Math.cos(ang - Math.PI / 6), b.y - head * Math.sin(ang - Math.PI / 6));
+    ctx.lineTo(b.x - head * Math.cos(ang + Math.PI / 6), b.y - head * Math.sin(ang + Math.PI / 6));
+    ctx.closePath();
+    ctx.fillStyle = isDraft ? hexToRgba(d.style.strokeColor, 0.6) : d.style.strokeColor;
+    ctx.fill();
   }
 
   private renderArrow(env: RenderEnv, d: Drawing, width: number, isDraft: boolean): void {
