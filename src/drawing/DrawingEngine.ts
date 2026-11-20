@@ -1191,7 +1191,8 @@ export class DrawingEngine implements ISeriesPrimitive<Time> {
       }
       case 'triangle':
       case 'polygon':
-      case 'path': {
+      case 'path':
+      case 'pathArrow': {
         const pt = this.snapAndClamp(x, y);
         if (!pt) return;
         if (handle >= 0 && handle < d.points.length) d.points[handle] = pt;
