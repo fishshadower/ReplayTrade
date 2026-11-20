@@ -191,6 +191,7 @@ export function DrawingToolbar({
   const PRIMARY: ToolbarItem['id'][] = [
     'select',
     'rectangle',
+    'pathArrow',
     'trendLine',
     'horizontalLine',
     'longPosition',
